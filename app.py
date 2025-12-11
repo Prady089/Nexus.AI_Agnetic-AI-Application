@@ -6,7 +6,7 @@ import asyncio
 from typing import List, Tuple
 
 import gradio as gr
-from agents import Agent, Runner
+from agent import Agent, Runner
 
 
 # ============================================================
