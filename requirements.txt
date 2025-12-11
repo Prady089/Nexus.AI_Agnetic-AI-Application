@@ -1,4 +1,5 @@
 gradio==4.29.0
 openai>=1.6.0
 nest_asyncio
+agents
 python-dotenv
