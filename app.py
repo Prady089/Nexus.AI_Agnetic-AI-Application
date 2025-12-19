@@ -1,4 +1,5 @@
 import os
+import re
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -34,7 +35,7 @@ LOGO_PATH = "orbita_logo_cropped.png"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not set in environment.")
+    raise ValueError("OPENAI_API_KEY not set.")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -52,43 +53,62 @@ def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
 
 
 # ============================================================
-# PLANNER AGENT
+# ROLE NORMALIZATION (CRITICAL FIX)
+# ============================================================
+
+def normalize_role(role: str) -> str:
+    if not role:
+        return ""
+    role = role.replace("–", "-").replace("—", "-")
+    role = re.sub(r"\s+", " ", role)
+    return role.strip().lower()
+
+
+# ============================================================
+# PLANNER AGENT (STRICT)
 # ============================================================
 
 PLANNER_PROMPT = """
 You are an expert orchestrator AI.
 
-Your job is to design a professional multi-agent workflow.
+Create 3–6 specialist roles to solve the TASK.
 
-Instructions:
-- Identify the nature of the task
-- Propose 3–6 specialist roles
-- Keep role names business-friendly
-- Provide a logical execution order
+MANDATORY RULES:
+- Role names must be 2–5 words, business-friendly
+- Use ONLY ASCII hyphen "-"
+- Role names must be reused EXACTLY in Personas and Linear_Workflow_Roles
+- Do NOT rename, rephrase, pluralize, or change spelling
 
-Required output format (exact):
+Return output in EXACT format:
 
 Personas:
-1. <Role> – <Why this role is needed>
+1. <Role> - <Why needed>
+2. <Role> - <Why needed>
 
 Workflow:
-2–4 sentences explaining the overall approach.
+2–4 sentences.
 
 Linear_Workflow_Roles: <Role 1>, <Role 2>, <Role 3>
 """
 
 
 async def planner_suggest(task: str) -> Tuple[str, List[str]]:
-    output = run_llm(
-        PLANNER_PROMPT,
-        f"TASK:\n{task}"
-    )
+    output = run_llm(PLANNER_PROMPT, f"TASK:\n{task}")
 
-    roles = []
+    roles_raw = []
     for line in output.splitlines():
         if line.startswith("Linear_Workflow_Roles:"):
-            roles = [r.strip() for r in line.split(":")[1].split(",") if r.strip()]
+            roles_raw = [r.strip() for r in line.split(":")[1].split(",") if r.strip()]
             break
+
+    # Deduplicate using normalization but preserve original names
+    seen = set()
+    roles = []
+    for r in roles_raw:
+        key = normalize_role(r)
+        if key and key not in seen:
+            seen.add(key)
+            roles.append(r)
 
     return output, roles
 
@@ -103,14 +123,14 @@ You are acting strictly as: {role}
 
 Writing rules (MANDATORY):
 - Professional consulting tone
-- No markdown symbols, no bullets, no emojis
-- No headings like ### or **
-- Use short, clear paragraphs
-- Be concise and executive-friendly
+- No markdown, no bullets, no symbols
+- No emojis or hashtags
+- Short, clear paragraphs
+- Executive-friendly language
 
 Responsibilities:
-- Read the TASK and TEAM HISTORY
-- Do not repeat earlier content
+- Read TASK and TEAM HISTORY
+- Do not repeat previous content
 - Advance the analysis from your role’s perspective
 """
 
@@ -137,13 +157,12 @@ You are the Summary Agent.
 Produce a PROFESSIONAL EXECUTIVE SUMMARY.
 
 Rules:
-- No markdown formatting
-- No symbols or decorative elements
-- Clear, structured, leadership-ready language
+- No markdown or decorative formatting
+- Clear, concise, leadership-ready language
 
 Your summary must include:
-1. Restatement of the original task
-2. Key themes discussed by agents
+1. Restatement of the task
+2. Key themes across agents
 3. Final synthesized insight
 4. Practical next steps
 """
@@ -157,7 +176,7 @@ def run_summary(task: str, history: str) -> str:
 
 
 # ============================================================
-# PDF EXPORT (EXECUTIVE-READY)
+# PDF EXPORT (EXECUTIVE GRADE)
 # ============================================================
 
 def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
@@ -181,11 +200,11 @@ def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
         textColor=colors.HexColor("#111827"),
     )
 
-    right_align = ParagraphStyle(
+    right = ParagraphStyle(
         "right",
         parent=styles["BodyText"],
-        fontSize=9,
         alignment=2,
+        fontSize=9,
         textColor=colors.HexColor("#374151"),
     )
 
@@ -200,7 +219,6 @@ def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
 
     story = []
 
-    # Header
     if os.path.exists(LOGO_PATH):
         story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
 
@@ -208,28 +226,24 @@ def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
     story.append(Paragraph(
         f"<b>{AUTHOR}</b><br/>LinkedIn: {AUTHOR_LINKEDIN}<br/>"
         f"Generated on: {datetime.datetime.now().strftime('%B %d, %Y %I:%M %p')}",
-        right_align
+        right
     ))
 
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 12))
     story.append(Paragraph(TAGLINE, styles["Heading2"]))
     story.append(Spacer(1, 16))
 
-    # Task
     story.append(Paragraph("<b>Task</b>", styles["Heading3"]))
     story.append(Spacer(1, 4))
     story.append(Paragraph(task, normal))
     story.append(Spacer(1, 14))
 
-    # Summary
     story.append(Paragraph("<b>Executive Summary</b>", styles["Heading3"]))
     story.append(Spacer(1, 6))
     for line in summary.split("\n"):
         story.append(Paragraph(line, normal))
 
     story.append(Spacer(1, 16))
-
-    # Condensed Workflow Log
     story.append(Paragraph("<b>Workflow Log (Condensed)</b>", styles["Heading3"]))
     story.append(Spacer(1, 6))
     for line in workflow_log.split("\n")[:25]:
@@ -250,11 +264,14 @@ async def run_automation(task: str, selected_agents: List[str]):
     plan_text, suggested_agents = await planner_suggest(task)
     history = "PLANNER OUTPUT\n" + plan_text + "\n"
 
-    # If user didn't explicitly select agents, default to all suggested
     if not selected_agents:
         execution_agents = suggested_agents
     else:
-        execution_agents = [a for a in suggested_agents if a in selected_agents]
+        selected_keys = {normalize_role(a) for a in selected_agents}
+        execution_agents = [
+            a for a in suggested_agents
+            if normalize_role(a) in selected_keys
+        ]
 
     if not execution_agents:
         return history + "\nNo agents available to run.", ""
@@ -287,7 +304,7 @@ with gr.Blocks() as app:
     )
 
     agent_selector = gr.CheckboxGroup(
-        label="Select Agents (Summary Agent runs automatically)",
+        label="Select Agents (defaults to all)",
         choices=[]
     )
 
