@@ -250,9 +250,14 @@ async def run_automation(task: str, selected_agents: List[str]):
     plan_text, suggested_agents = await planner_suggest(task)
     history = "PLANNER OUTPUT\n" + plan_text + "\n"
 
-    execution_agents = [a for a in suggested_agents if a in selected_agents]
+    # If user didn't explicitly select agents, default to all suggested
+    if not selected_agents:
+        execution_agents = suggested_agents
+    else:
+        execution_agents = [a for a in suggested_agents if a in selected_agents]
+
     if not execution_agents:
-        return history + "\nNo agents selected.", ""
+        return history + "\nNo agents available to run.", ""
 
     for i, agent in enumerate(execution_agents, start=1):
         output = run_role(task, agent, history)
