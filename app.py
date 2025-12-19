@@ -56,30 +56,32 @@ def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
 # ============================================================
 
 PLANNER_PROMPT = """
-You are an expert orchestrator AI that designs teams of specialist agents.
+You are an expert orchestrator AI.
 
-Given a TASK:
-1. Identify what type of problem this is.
-2. Propose 3–7 personas needed.
-3. Provide a short justification for each.
-4. Provide a LINEAR workflow order.
+Your job is to design a professional multi-agent workflow.
 
-Follow EXACT structure:
+Instructions:
+- Identify the nature of the task
+- Propose 3–6 specialist roles
+- Keep role names business-friendly
+- Provide a logical execution order
+
+Required output format (exact):
 
 Personas:
-1. <Role> - <Why needed>
+1. <Role> – <Why this role is needed>
 
 Workflow:
-2–4 sentence description.
+2–4 sentences explaining the overall approach.
 
-Linear_Workflow_Roles: <Role 1>, <Role 2>, <Role 3>, ...
+Linear_Workflow_Roles: <Role 1>, <Role 2>, <Role 3>
 """
 
 
 async def planner_suggest(task: str) -> Tuple[str, List[str]]:
     output = run_llm(
         PLANNER_PROMPT,
-        f"TASK:\n{task}\n\nFollow the required output structure."
+        f"TASK:\n{task}"
     )
 
     roles = []
@@ -92,19 +94,24 @@ async def planner_suggest(task: str) -> Tuple[str, List[str]]:
 
 
 # ============================================================
-# ROLE EXECUTION
+# ROLE AGENT (PROFESSIONAL OUTPUT)
 # ============================================================
 
 def run_role(task: str, role: str, history: str) -> str:
     system_prompt = f"""
 You are acting strictly as: {role}
 
-Rules:
-- Contribute only from this role’s perspective
-- Read TASK and TEAM HISTORY
-- Do NOT repeat earlier content
-- Advance the work
-- Use headings and bullet points
+Writing rules (MANDATORY):
+- Professional consulting tone
+- No markdown symbols, no bullets, no emojis
+- No headings like ### or **
+- Use short, clear paragraphs
+- Be concise and executive-friendly
+
+Responsibilities:
+- Read the TASK and TEAM HISTORY
+- Do not repeat earlier content
+- Advance the analysis from your role’s perspective
 """
 
     user_prompt = f"""
@@ -114,7 +121,7 @@ TASK:
 TEAM HISTORY:
 {history}
 
-Now act as {role} and advance the work.
+Proceed with your contribution.
 """
 
     return run_llm(system_prompt, user_prompt)
@@ -127,13 +134,18 @@ Now act as {role} and advance the work.
 SUMMARY_PROMPT = """
 You are the Summary Agent.
 
-Summarize the entire multi-agent workflow.
+Produce a PROFESSIONAL EXECUTIVE SUMMARY.
 
-Your output MUST include:
-- Task overview
-- Key contribution from each agent
-- Final synthesized insight
-- Clear next steps or recommendations
+Rules:
+- No markdown formatting
+- No symbols or decorative elements
+- Clear, structured, leadership-ready language
+
+Your summary must include:
+1. Restatement of the original task
+2. Key themes discussed by agents
+3. Final synthesized insight
+4. Practical next steps
 """
 
 
@@ -145,66 +157,83 @@ def run_summary(task: str, history: str) -> str:
 
 
 # ============================================================
-# PDF EXPORT (ORBITA BRANDED)
+# PDF EXPORT (EXECUTIVE-READY)
 # ============================================================
 
-def generate_branded_pdf(workflow_log: str, summary: str) -> str:
-    file_path = f"/tmp/orbita_workflow_{uuid.uuid4().hex}.pdf"
+def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
+    file_path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
 
     styles = getSampleStyleSheet()
+
     small = ParagraphStyle(
         "small",
         parent=styles["BodyText"],
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#6B7280"),
+    )
+
+    normal = ParagraphStyle(
+        "normal",
+        parent=styles["BodyText"],
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor("#111827"),
+    )
+
+    right_align = ParagraphStyle(
+        "right",
+        parent=styles["BodyText"],
         fontSize=9,
-        leading=11,
+        alignment=2,
         textColor=colors.HexColor("#374151"),
     )
 
     doc = SimpleDocTemplate(
         file_path,
         pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
         topMargin=36,
         bottomMargin=36,
-        leftMargin=48,
-        rightMargin=48,
     )
 
     story = []
 
-    # Logo
-    if os.path.exists(LOGO_PATH):
-        logo_w = 3.5 * inch
-        story.append(RLImage(LOGO_PATH, width=logo_w, height=logo_w * 0.35))
-        story.append(Spacer(1, 10))
-    else:
-        story.append(Paragraph(BRAND_NAME, styles["Title"]))
-
     # Header
-    story.append(Paragraph(TAGLINE, styles["Heading2"]))
-    story.append(Spacer(1, 4))
+    if os.path.exists(LOGO_PATH):
+        story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
+
+    story.append(Spacer(1, 6))
     story.append(Paragraph(
-        f"Built by {AUTHOR} • LinkedIn: {AUTHOR_LINKEDIN}",
-        small
-    ))
-    story.append(Paragraph(
+        f"<b>{AUTHOR}</b><br/>LinkedIn: {AUTHOR_LINKEDIN}<br/>"
         f"Generated on: {datetime.datetime.now().strftime('%B %d, %Y %I:%M %p')}",
-        small
+        right_align
     ))
+
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(TAGLINE, styles["Heading2"]))
+    story.append(Spacer(1, 16))
+
+    # Task
+    story.append(Paragraph("<b>Task</b>", styles["Heading3"]))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(task, normal))
     story.append(Spacer(1, 14))
 
-    # Workflow
-    story.append(Paragraph("Workflow Log", styles["Heading2"]))
-    story.append(Spacer(1, 6))
-    for line in workflow_log.split("\n"):
-        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        story.append(Paragraph(safe, styles["BodyText"]))
-
-    story.append(Spacer(1, 12))
-    story.append(Paragraph("Final Summary", styles["Heading2"]))
+    # Summary
+    story.append(Paragraph("<b>Executive Summary</b>", styles["Heading3"]))
     story.append(Spacer(1, 6))
     for line in summary.split("\n"):
-        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        story.append(Paragraph(safe, styles["BodyText"]))
+        story.append(Paragraph(line, normal))
+
+    story.append(Spacer(1, 16))
+
+    # Condensed Workflow Log
+    story.append(Paragraph("<b>Workflow Log (Condensed)</b>", styles["Heading3"]))
+    story.append(Spacer(1, 6))
+    for line in workflow_log.split("\n")[:25]:
+        story.append(Paragraph(line, small))
 
     doc.build(story)
     return file_path
@@ -216,18 +245,18 @@ def generate_branded_pdf(workflow_log: str, summary: str) -> str:
 
 async def run_automation(task: str, selected_agents: List[str]):
     if not task.strip():
-        return "⚠️ Please enter a task.", ""
+        return "Please enter a task.", ""
 
     plan_text, suggested_agents = await planner_suggest(task)
-    history = "=== PLANNER OUTPUT ===\n" + plan_text + "\n"
+    history = "PLANNER OUTPUT\n" + plan_text + "\n"
 
     execution_agents = [a for a in suggested_agents if a in selected_agents]
     if not execution_agents:
-        return history + "\n❌ No agents selected.", ""
+        return history + "\nNo agents selected.", ""
 
     for i, agent in enumerate(execution_agents, start=1):
         output = run_role(task, agent, history)
-        history += f"\n\n=== STEP {i}: {agent} ===\n{output}\n"
+        history += f"\nSTEP {i}: {agent}\n{output}\n"
 
     summary = run_summary(task, history)
     return history, summary
@@ -249,7 +278,7 @@ with gr.Blocks() as app:
     task_box = gr.Textbox(
         label="Enter Task",
         lines=4,
-        placeholder="Example: Design an AI-powered consulting assistant."
+        placeholder="Example: Enhance executive Power BI dashboards using AI and agentic AI."
     )
 
     agent_selector = gr.CheckboxGroup(
@@ -257,27 +286,27 @@ with gr.Blocks() as app:
         choices=[]
     )
 
-    plan_btn = gr.Button("🧠 Generate Agent Plan")
-    run_btn = gr.Button("🚀 Run ORBITA Workflow")
+    plan_btn = gr.Button("Generate Agent Plan")
+    run_btn = gr.Button("Run ORBITA Workflow")
 
-    workflow_log = gr.Textbox(label="Workflow Log", lines=22)
-    final_summary = gr.Textbox(label="Final Insight (Summary Agent)", lines=14)
+    workflow_log = gr.Textbox(label="Workflow Log", lines=18)
+    final_summary = gr.Textbox(label="Executive Summary", lines=14)
 
-    pdf_btn = gr.Button("📄 Export ORBITA PDF")
+    pdf_btn = gr.Button("Export ORBITA PDF")
     pdf_file = gr.File(label="Download / Share PDF")
 
     async def populate_agents(task):
         _, agents = await planner_suggest(task)
         return gr.CheckboxGroup(choices=agents, value=agents)
 
-    def export_pdf_action(log, summary):
-        if not log or not summary:
+    def export_pdf_action(task, log, summary):
+        if not task or not log or not summary:
             return None
-        return generate_branded_pdf(log, summary)
+        return generate_branded_pdf(task, log, summary)
 
     plan_btn.click(populate_agents, inputs=task_box, outputs=agent_selector)
     run_btn.click(run_sync, inputs=[task_box, agent_selector], outputs=[workflow_log, final_summary])
-    pdf_btn.click(export_pdf_action, inputs=[workflow_log, final_summary], outputs=pdf_file)
+    pdf_btn.click(export_pdf_action, inputs=[task_box, workflow_log, final_summary], outputs=pdf_file)
 
     gr.Markdown(
         f"Built by **{AUTHOR}** • "
