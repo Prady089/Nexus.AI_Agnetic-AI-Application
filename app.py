@@ -53,7 +53,7 @@ def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
 
 
 # ============================================================
-# ROLE NORMALIZATION (CRITICAL FIX)
+# ROLE NORMALIZATION (CRITICAL)
 # ============================================================
 
 def normalize_role(role: str) -> str:
@@ -65,7 +65,7 @@ def normalize_role(role: str) -> str:
 
 
 # ============================================================
-# PLANNER AGENT (STRICT)
+# PLANNER AGENT (STRICT + STABLE)
 # ============================================================
 
 PLANNER_PROMPT = """
@@ -74,16 +74,14 @@ You are an expert orchestrator AI.
 Create 3–6 specialist roles to solve the TASK.
 
 MANDATORY RULES:
-- Role names must be 2–5 words, business-friendly
-- Use ONLY ASCII hyphen "-"
-- Role names must be reused EXACTLY in Personas and Linear_Workflow_Roles
-- Do NOT rename, rephrase, pluralize, or change spelling
+- Role names must be reused EXACTLY
+- Use only ASCII hyphen "-"
+- No renaming or paraphrasing later
 
 Return output in EXACT format:
 
 Personas:
 1. <Role> - <Why needed>
-2. <Role> - <Why needed>
 
 Workflow:
 2–4 sentences.
@@ -101,12 +99,11 @@ async def planner_suggest(task: str) -> Tuple[str, List[str]]:
             roles_raw = [r.strip() for r in line.split(":")[1].split(",") if r.strip()]
             break
 
-    # Deduplicate using normalization but preserve original names
     seen = set()
     roles = []
     for r in roles_raw:
         key = normalize_role(r)
-        if key and key not in seen:
+        if key not in seen:
             seen.add(key)
             roles.append(r)
 
@@ -121,17 +118,15 @@ def run_role(task: str, role: str, history: str) -> str:
     system_prompt = f"""
 You are acting strictly as: {role}
 
-Writing rules (MANDATORY):
-- Professional consulting tone
-- No markdown, no bullets, no symbols
-- No emojis or hashtags
-- Short, clear paragraphs
-- Executive-friendly language
+Writing rules:
+- Professional consulting language
+- No markdown, no bullets, no emojis
+- Short paragraphs, executive tone
 
 Responsibilities:
 - Read TASK and TEAM HISTORY
-- Do not repeat previous content
-- Advance the analysis from your role’s perspective
+- Do not repeat earlier content
+- Advance the work
 """
 
     user_prompt = f"""
@@ -141,7 +136,7 @@ TASK:
 TEAM HISTORY:
 {history}
 
-Proceed with your contribution.
+Proceed.
 """
 
     return run_llm(system_prompt, user_prompt)
@@ -154,17 +149,17 @@ Proceed with your contribution.
 SUMMARY_PROMPT = """
 You are the Summary Agent.
 
-Produce a PROFESSIONAL EXECUTIVE SUMMARY.
+Produce an EXECUTIVE SUMMARY.
 
 Rules:
-- No markdown or decorative formatting
-- Clear, concise, leadership-ready language
+- No markdown or formatting symbols
+- Clear, concise, leadership-ready
 
-Your summary must include:
-1. Restatement of the task
-2. Key themes across agents
-3. Final synthesized insight
-4. Practical next steps
+Include:
+1. Task restatement
+2. Key themes
+3. Final insight
+4. Next steps
 """
 
 
@@ -176,10 +171,10 @@ def run_summary(task: str, history: str) -> str:
 
 
 # ============================================================
-# PDF EXPORT (EXECUTIVE GRADE)
+# PDF EXPORT (USES AUTHORITATIVE STATE)
 # ============================================================
 
-def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
+def generate_branded_pdf(task: str, full_log: str, summary: str) -> str:
     file_path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
 
     styles = getSampleStyleSheet()
@@ -246,7 +241,7 @@ def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
     story.append(Spacer(1, 16))
     story.append(Paragraph("<b>Workflow Log (Condensed)</b>", styles["Heading3"]))
     story.append(Spacer(1, 6))
-    for line in workflow_log.split("\n")[:25]:
+    for line in full_log.split("\n")[:40]:
         story.append(Paragraph(line, small))
 
     doc.build(story)
@@ -254,12 +249,12 @@ def generate_branded_pdf(task: str, workflow_log: str, summary: str) -> str:
 
 
 # ============================================================
-# AUTOMATION ENGINE
+# AUTOMATION ENGINE (AUTHORITATIVE LOG)
 # ============================================================
 
 async def run_automation(task: str, selected_agents: List[str]):
     if not task.strip():
-        return "Please enter a task.", ""
+        return "", ""
 
     plan_text, suggested_agents = await planner_suggest(task)
     history = "PLANNER OUTPUT\n" + plan_text + "\n"
@@ -272,9 +267,6 @@ async def run_automation(task: str, selected_agents: List[str]):
             a for a in suggested_agents
             if normalize_role(a) in selected_keys
         ]
-
-    if not execution_agents:
-        return history + "\nNo agents available to run.", ""
 
     for i, agent in enumerate(execution_agents, start=1):
         output = run_role(task, agent, history)
@@ -290,7 +282,7 @@ def run_sync(task, agents):
 
 
 # ============================================================
-# GRADIO UI
+# GRADIO UI (STATE-BASED)
 # ============================================================
 
 with gr.Blocks() as app:
@@ -314,6 +306,8 @@ with gr.Blocks() as app:
     workflow_log = gr.Textbox(label="Workflow Log", lines=18)
     final_summary = gr.Textbox(label="Executive Summary", lines=14)
 
+    workflow_state = gr.State("")
+
     pdf_btn = gr.Button("Export ORBITA PDF")
     pdf_file = gr.File(label="Download / Share PDF")
 
@@ -321,14 +315,27 @@ with gr.Blocks() as app:
         _, agents = await planner_suggest(task)
         return gr.CheckboxGroup(choices=agents, value=agents)
 
-    def export_pdf_action(task, log, summary):
-        if not task or not log or not summary:
+    def run_and_store(task, agents):
+        log, summary = run_sync(task, agents)
+        return log, summary, log
+
+    def export_pdf_action(task, full_log, summary):
+        if not task or not full_log or not summary:
             return None
-        return generate_branded_pdf(task, log, summary)
+        return generate_branded_pdf(task, full_log, summary)
 
     plan_btn.click(populate_agents, inputs=task_box, outputs=agent_selector)
-    run_btn.click(run_sync, inputs=[task_box, agent_selector], outputs=[workflow_log, final_summary])
-    pdf_btn.click(export_pdf_action, inputs=[task_box, workflow_log, final_summary], outputs=pdf_file)
+    run_btn.click(
+        run_and_store,
+        inputs=[task_box, agent_selector],
+        outputs=[workflow_log, final_summary, workflow_state]
+    )
+
+    pdf_btn.click(
+        export_pdf_action,
+        inputs=[task_box, workflow_state, final_summary],
+        outputs=pdf_file
+    )
 
     gr.Markdown(
         f"Built by **{AUTHOR}** • "
