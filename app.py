@@ -3,28 +3,41 @@ import nest_asyncio
 nest_asyncio.apply()
 
 import asyncio
-import gradio as gr
+import uuid
+import datetime
 from typing import List, Tuple
 
+import gradio as gr
 from openai import OpenAI
+
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
 
 
 # ============================================================
-# API KEY
+# ORBITA BRAND CONFIG
+# ============================================================
+
+BRAND_NAME = "ORBITA"
+TAGLINE = "Many Perspectives. One Insight."
+AUTHOR = "Pradeep Kumar"
+AUTHOR_LINKEDIN = "https://www.linkedin.com/in/prady089/"
+LOGO_PATH = "orbita_logo_cropped.png"
+
+
+# ============================================================
+# OPENAI CONFIG
 # ============================================================
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError(
-        "OPENAI_API_KEY not found. Add it in HuggingFace → Settings → Variables and Secrets."
-    )
+    raise ValueError("OPENAI_API_KEY not set in environment.")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-
-# ============================================================
-# GENERIC LLM CALL
-# ============================================================
 
 def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
     response = client.chat.completions.create(
@@ -33,7 +46,7 @@ def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.3
+        temperature=0.3,
     )
     return response.choices[0].message.content.strip()
 
@@ -55,7 +68,6 @@ Follow EXACT structure:
 
 Personas:
 1. <Role> - <Why needed>
-2. <Role> - <Why needed>
 
 Workflow:
 2–4 sentence description.
@@ -88,10 +100,10 @@ def run_role(task: str, role: str, history: str) -> str:
 You are acting strictly as: {role}
 
 Rules:
-- Only contribute from this role’s perspective
+- Contribute only from this role’s perspective
 - Read TASK and TEAM HISTORY
 - Do NOT repeat earlier content
-- Move the work forward
+- Advance the work
 - Use headings and bullet points
 """
 
@@ -119,8 +131,8 @@ Summarize the entire multi-agent workflow.
 
 Your output MUST include:
 - Task overview
-- Each agent’s contribution
-- Final synthesized result
+- Key contribution from each agent
+- Final synthesized insight
 - Clear next steps or recommendations
 """
 
@@ -133,6 +145,72 @@ def run_summary(task: str, history: str) -> str:
 
 
 # ============================================================
+# PDF EXPORT (ORBITA BRANDED)
+# ============================================================
+
+def generate_branded_pdf(workflow_log: str, summary: str) -> str:
+    file_path = f"/tmp/orbita_workflow_{uuid.uuid4().hex}.pdf"
+
+    styles = getSampleStyleSheet()
+    small = ParagraphStyle(
+        "small",
+        parent=styles["BodyText"],
+        fontSize=9,
+        leading=11,
+        textColor=colors.HexColor("#374151"),
+    )
+
+    doc = SimpleDocTemplate(
+        file_path,
+        pagesize=A4,
+        topMargin=36,
+        bottomMargin=36,
+        leftMargin=48,
+        rightMargin=48,
+    )
+
+    story = []
+
+    # Logo
+    if os.path.exists(LOGO_PATH):
+        logo_w = 3.5 * inch
+        story.append(RLImage(LOGO_PATH, width=logo_w, height=logo_w * 0.35))
+        story.append(Spacer(1, 10))
+    else:
+        story.append(Paragraph(BRAND_NAME, styles["Title"]))
+
+    # Header
+    story.append(Paragraph(TAGLINE, styles["Heading2"]))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        f"Built by {AUTHOR} • LinkedIn: {AUTHOR_LINKEDIN}",
+        small
+    ))
+    story.append(Paragraph(
+        f"Generated on: {datetime.datetime.now().strftime('%B %d, %Y %I:%M %p')}",
+        small
+    ))
+    story.append(Spacer(1, 14))
+
+    # Workflow
+    story.append(Paragraph("Workflow Log", styles["Heading2"]))
+    story.append(Spacer(1, 6))
+    for line in workflow_log.split("\n"):
+        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(safe, styles["BodyText"]))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Final Summary", styles["Heading2"]))
+    story.append(Spacer(1, 6))
+    for line in summary.split("\n"):
+        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(safe, styles["BodyText"]))
+
+    doc.build(story)
+    return file_path
+
+
+# ============================================================
 # AUTOMATION ENGINE
 # ============================================================
 
@@ -141,22 +219,17 @@ async def run_automation(task: str, selected_agents: List[str]):
         return "⚠️ Please enter a task.", ""
 
     plan_text, suggested_agents = await planner_suggest(task)
-
     history = "=== PLANNER OUTPUT ===\n" + plan_text + "\n"
 
-    # Use planner order but filter by user selection
     execution_agents = [a for a in suggested_agents if a in selected_agents]
-
     if not execution_agents:
         return history + "\n❌ No agents selected.", ""
 
-    for idx, agent in enumerate(execution_agents, start=1):
+    for i, agent in enumerate(execution_agents, start=1):
         output = run_role(task, agent, history)
-        history += f"\n\n=== STEP {idx}: {agent} ===\n{output}\n"
+        history += f"\n\n=== STEP {i}: {agent} ===\n{output}\n"
 
-    # Summary agent always runs last
     summary = run_summary(task, history)
-
     return history, summary
 
 
@@ -170,45 +243,46 @@ def run_sync(task, agents):
 # ============================================================
 
 with gr.Blocks() as app:
-    gr.Markdown("# 🤖 Automatic Multi-Agent Workflow")
-    gr.Markdown(
-        "Agents are planned, selected, and executed automatically. "
-        "A Summary Agent always runs at the end."
-    )
+    gr.Markdown(f"# 🧠 {BRAND_NAME}")
+    gr.Markdown(f"### {TAGLINE}")
 
     task_box = gr.Textbox(
         label="Enter Task",
         lines=4,
-        placeholder="Example: Build an AI-powered resume analyzer."
+        placeholder="Example: Design an AI-powered consulting assistant."
     )
 
     agent_selector = gr.CheckboxGroup(
-        label="Select Agents to Run (Summary Agent runs automatically)",
-        choices=[],
-        interactive=True
+        label="Select Agents (Summary Agent runs automatically)",
+        choices=[]
     )
 
     plan_btn = gr.Button("🧠 Generate Agent Plan")
-    run_btn = gr.Button("🚀 Run Automatic Workflow")
+    run_btn = gr.Button("🚀 Run ORBITA Workflow")
 
-    workflow_log = gr.Textbox(label="Full Workflow Log", lines=22)
-    final_summary = gr.Textbox(label="Final Summary (Auto)", lines=14)
+    workflow_log = gr.Textbox(label="Workflow Log", lines=22)
+    final_summary = gr.Textbox(label="Final Insight (Summary Agent)", lines=14)
 
-    # Planner step populates agent selector
+    pdf_btn = gr.Button("📄 Export ORBITA PDF")
+    pdf_file = gr.File(label="Download / Share PDF")
+
     async def populate_agents(task):
-        plan, agents = await planner_suggest(task)
+        _, agents = await planner_suggest(task)
         return gr.CheckboxGroup(choices=agents, value=agents)
 
-    plan_btn.click(
-        populate_agents,
-        inputs=task_box,
-        outputs=agent_selector
-    )
+    def export_pdf_action(log, summary):
+        if not log or not summary:
+            return None
+        return generate_branded_pdf(log, summary)
 
-    run_btn.click(
-        run_sync,
-        inputs=[task_box, agent_selector],
-        outputs=[workflow_log, final_summary]
+    plan_btn.click(populate_agents, inputs=task_box, outputs=agent_selector)
+    run_btn.click(run_sync, inputs=[task_box, agent_selector], outputs=[workflow_log, final_summary])
+    pdf_btn.click(export_pdf_action, inputs=[workflow_log, final_summary], outputs=pdf_file)
+
+    gr.Markdown(
+        f"Built by **{AUTHOR}** • "
+        f"[LinkedIn]({AUTHOR_LINKEDIN}) • "
+        f"© 2025 {BRAND_NAME} Labs"
     )
 
 app.launch()
