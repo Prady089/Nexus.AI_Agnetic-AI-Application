@@ -35,33 +35,37 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def llm(system, user):
     r = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "system", "content": system},
-                  {"role": "user", "content": user}],
-        temperature=0.3
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.3,
     )
     return r.choices[0].message.content.strip()
 
 
-def norm(x): 
-    return re.sub(r"\s+", " ", x.strip()).lower()
+def clean_list(text):
+    return [a.strip() for a in text.split(",") if a.strip()]
 
 
 # ============================================================
-# PLANNER
+# PLANNER (AI SUGGESTS AGENTS)
 # ============================================================
 
 PLANNER_PROMPT = """
-Create 3–6 specialist roles.
+You are an expert AI orchestrator.
+
+Create 3–6 specialist agent roles for the TASK.
 
 Rules:
-- Use EXACT same role names everywhere
-- No renaming
-- Simple business-friendly names
+- Business-friendly role names
+- Consistent naming
+- No emojis or symbols
 
-Output format EXACT:
+Return EXACT format:
 
 Personas:
-1. <Role> - <Reason>
+1. <Role> - <Why>
 
 Workflow:
 2–4 sentences.
@@ -73,9 +77,9 @@ Linear_Workflow_Roles: <Role1>, <Role2>, <Role3>
 def planner(task):
     out = llm(PLANNER_PROMPT, f"TASK:\n{task}")
     roles = []
-    for l in out.splitlines():
-        if l.startswith("Linear_Workflow_Roles:"):
-            roles = [r.strip() for r in l.split(":")[1].split(",")]
+    for line in out.splitlines():
+        if line.startswith("Linear_Workflow_Roles:"):
+            roles = clean_list(line.split(":")[1])
     return out, roles
 
 
@@ -84,31 +88,32 @@ def planner(task):
 # ============================================================
 
 def run_role(task, role, history):
-    sys = f"""
+    system = f"""
 You are acting as {role}.
-Write in professional consulting language.
-No bullets, no markdown, no emojis.
+Use professional consulting language.
+No markdown, no bullets, no emojis.
 Advance the work only.
 """
-    usr = f"TASK:\n{task}\n\nHISTORY:\n{history}"
-    return llm(sys, usr)
+    user = f"TASK:\n{task}\n\nTEAM HISTORY:\n{history}"
+    return llm(system, user)
 
 
 def summarize(task, history):
     return llm(
-        "Produce a concise executive summary.",
-        f"TASK:\n{task}\n\nFULL LOG:\n{history}"
+        "Produce an executive summary with insights and next steps.",
+        f"TASK:\n{task}\n\nFULL HISTORY:\n{history}"
     )
 
 
 # ============================================================
-# PDF (PER-AGENT SECTIONS — NEVER TRUNCATES)
+# PDF EXPORT (PER-AGENT SECTIONS)
 # ============================================================
 
-def export_pdf(task, run_log, summary):
+def export_pdf(task, agent_log, summary):
     path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
     styles = getSampleStyleSheet()
 
+    body = ParagraphStyle("b", parent=styles["BodyText"], fontSize=10, leading=14)
     small = ParagraphStyle("s", parent=styles["BodyText"], fontSize=9, leading=12)
     header = ParagraphStyle("h", parent=styles["Heading2"], textColor=colors.HexColor("#1F2937"))
 
@@ -124,43 +129,45 @@ def export_pdf(task, run_log, summary):
     story.append(Spacer(1, 14))
 
     story.append(Paragraph("<b>Task</b>", styles["Heading3"]))
-    story.append(Paragraph(task, small))
+    story.append(Paragraph(task, body))
     story.append(PageBreak())
 
-    for agent, text in run_log.items():
+    for agent, text in agent_log.items():
         story.append(Paragraph(agent, header))
         for line in text.split("\n"):
-            story.append(Paragraph(line, small))
+            story.append(Paragraph(line, body))
         story.append(PageBreak())
 
     story.append(Paragraph("Executive Summary", header))
-    for l in summary.split("\n"):
-        story.append(Paragraph(l, small))
+    for line in summary.split("\n"):
+        story.append(Paragraph(line, body))
 
     doc.build(story)
     return path
 
 
 # ============================================================
-# AUTOMATION
+# AUTOMATION ENGINE (DETERMINISTIC)
 # ============================================================
 
 def run(task, agent_text):
-    planner_out, suggested = planner(task)
-    selected = [a.strip() for a in agent_text.split(",") if a.strip()]
-    agents = selected if selected else suggested
+    planner_out, suggested_agents = planner(task)
 
-    log = {"Planner": planner_out}
+    # Agents come from editable text box
+    agents = clean_list(agent_text) if agent_text.strip() else suggested_agents
+
+    agent_log = {"Planner": planner_out}
     history = planner_out
 
-    for a in agents:
-        out = run_role(task, a, history)
-        log[a] = out
-        history += f"\n{a}:\n{out}"
+    for agent in agents:
+        out = run_role(task, agent, history)
+        agent_log[agent] = out
+        history += f"\n{agent}:\n{out}"
 
     summary = summarize(task, history)
-    log["Summary"] = summary
-    return log, summary
+    agent_log["Summary"] = summary
+
+    return agent_log, summary
 
 
 # ============================================================
@@ -171,30 +178,36 @@ with gr.Blocks() as app:
     gr.Markdown(f"# 🧠 {BRAND_NAME}")
     gr.Markdown(TAGLINE)
 
-    task = gr.Textbox(label="Task", lines=4)
+    task_box = gr.Textbox(label="Task", lines=4)
 
-    agent_input = gr.Textbox(
-        label="Agents to run (comma-separated, optional)",
-        placeholder="Example: Travel Planner, Budget Analyst, Local Guide"
+    suggest_btn = gr.Button("Suggest Agents")
+
+    agents_box = gr.Textbox(
+        label="Agents to run (editable, comma-separated)",
+        placeholder="AI will suggest agents here"
     )
 
     run_btn = gr.Button("Run ORBITA")
 
-    log_box = gr.JSON(label="Structured Workflow Output")
-    summary_box = gr.Textbox(label="Executive Summary", lines=10)
+    log_state = gr.State()
+
+    log_view = gr.JSON(label="Structured Agent Output")
+    summary_view = gr.Textbox(label="Executive Summary", lines=10)
 
     pdf_btn = gr.Button("Export Full PDF")
     pdf_file = gr.File()
 
-    state = gr.State()
+    def suggest_agents(task):
+        _, roles = planner(task)
+        return ", ".join(roles)
 
-    def run_ui(t, a):
-        log, summary = run(t, a)
+    def run_ui(task, agents):
+        log, summary = run(task, agents)
         return log, summary, log
 
-    run_btn.click(run_ui, [task, agent_input], [log_box, summary_box, state])
-
+    suggest_btn.click(suggest_agents, task_box, agents_box)
+    run_btn.click(run_ui, [task_box, agents_box], [log_view, summary_view, log_state])
     pdf_btn.click(lambda t, l, s: export_pdf(t, l, s),
-                  [task, state, summary_box], pdf_file)
+                  [task_box, log_state, summary_view], pdf_file)
 
 app.launch()
