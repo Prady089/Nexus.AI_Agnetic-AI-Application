@@ -3,16 +3,14 @@ import nest_asyncio
 nest_asyncio.apply()
 
 import asyncio
+import gradio as gr
 from typing import List, Tuple
 
-import gradio as gr
-
-# Import the correct agents library (bundled inside openai>=1.6.0)
-from agents import Agent, Runner
+from openai import OpenAI
 
 
 # ============================================================
-# LOAD API KEY
+# API KEY
 # ============================================================
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -21,12 +19,30 @@ if not OPENAI_API_KEY:
         "OPENAI_API_KEY not found. Add it in HuggingFace → Settings → Variables and Secrets."
     )
 
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+# ============================================================
+# GENERIC LLM CALL
+# ============================================================
+
+def run_llm(system_prompt: str, user_prompt: str, model="gpt-4o-mini") -> str:
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.3
+    )
+    return response.choices[0].message.content.strip()
+
 
 # ============================================================
 # PLANNER AGENT
 # ============================================================
 
-planner_instructions = """
+PLANNER_PROMPT = """
 You are an expert orchestrator AI that designs teams of specialist agents.
 
 Given a TASK:
@@ -34,6 +50,7 @@ Given a TASK:
 2. Propose 3–7 personas needed.
 3. Provide a short justification for each.
 4. Provide a LINEAR workflow order.
+
 Follow EXACT structure:
 
 Personas:
@@ -46,126 +63,106 @@ Workflow:
 Linear_Workflow_Roles: <Role 1>, <Role 2>, <Role 3>, ...
 """
 
-planner_agent = Agent(
-    name="Planner",
-    instructions=planner_instructions,
-    model="gpt-4o-mini"
-)
 
+async def planner_suggest(task: str) -> Tuple[str, List[str]]:
+    output = run_llm(
+        PLANNER_PROMPT,
+        f"TASK:\n{task}\n\nFollow the required output structure."
+    )
 
-async def planner_suggest(task: str):
-    prompt = f"TASK:\n{task}\n\nFollow the required output structure."
-    result = await Runner.run(planner_agent, prompt)
-
-    output = result.final_output
     roles = []
-
     for line in output.splitlines():
         if line.startswith("Linear_Workflow_Roles:"):
-            _, _, rest = line.partition(":")
-            roles = [r.strip() for r in rest.split(",") if r.strip()]
+            roles = [r.strip() for r in line.split(":")[1].split(",") if r.strip()]
             break
 
     return output, roles
 
 
 # ============================================================
-# ROLE AGENT FACTORY
+# ROLE EXECUTION
 # ============================================================
 
-def make_role_agent(role: str):
-    instructions = f"""
-You are acting in the role: {role}.
-You contribute ONLY from the perspective of this role.
+def run_role(task: str, role: str, history: str) -> str:
+    system_prompt = f"""
+You are acting strictly as: {role}
 
-Your responsibilities:
-- Read the TASK.
-- Read TEAM HISTORY.
-- Continue the work logically.
-- Do not repeat previous content.
-- Provide valuable forward progress.
-- Use headings & bullet points.
+Rules:
+- Only contribute from this role’s perspective
+- Read TASK and TEAM HISTORY
+- Do NOT repeat earlier content
+- Move the work forward
+- Use headings and bullet points
 """
-    return Agent(name=role, instructions=instructions, model="gpt-4o-mini")
 
-
-async def run_role_step(task: str, role: str, history: str):
-    agent = make_role_agent(role)
-    prompt = f"""
+    user_prompt = f"""
 TASK:
 {task}
 
 TEAM HISTORY:
-{history or "(none)"}
-
-Now act as the {role} and advance the work.
-"""
-    result = await Runner.run(agent, prompt)
-    return result.final_output
-
-
-# ============================================================
-# EVALUATOR AGENT
-# ============================================================
-
-evaluator_agent = Agent(
-    name="Evaluator",
-    instructions="""
-You summarize the complete multi-agent workflow.
-
-Your summary MUST include:
-- Overview of the task
-- Key contributions from each agent
-- Final synthesized output
-- Next steps OR recommendations
-""",
-    model="gpt-4o-mini"
-)
-
-
-async def evaluate_workflow(task: str, history: str):
-    prompt = f"""
-TASK:
-{task}
-
-FULL TEAM HISTORY:
 {history}
 
-Please produce a CLEAR, STRUCTURED, FINAL SUMMARY.
+Now act as {role} and advance the work.
 """
-    result = await Runner.run(evaluator_agent, prompt)
-    return result.final_output
+
+    return run_llm(system_prompt, user_prompt)
 
 
 # ============================================================
-# MASTER AUTOMATION ENGINE
+# SUMMARY AGENT (MANDATORY)
 # ============================================================
 
-async def run_full_automation(task: str):
+SUMMARY_PROMPT = """
+You are the Summary Agent.
+
+Summarize the entire multi-agent workflow.
+
+Your output MUST include:
+- Task overview
+- Each agent’s contribution
+- Final synthesized result
+- Clear next steps or recommendations
+"""
+
+
+def run_summary(task: str, history: str) -> str:
+    return run_llm(
+        SUMMARY_PROMPT,
+        f"TASK:\n{task}\n\nFULL WORKFLOW LOG:\n{history}"
+    )
+
+
+# ============================================================
+# AUTOMATION ENGINE
+# ============================================================
+
+async def run_automation(task: str, selected_agents: List[str]):
     if not task.strip():
         return "⚠️ Please enter a task.", ""
 
-    # Planner
-    plan_text, roles = await planner_suggest(task)
-    if not roles:
-        return plan_text + "\n\n❌ No roles detected.", ""
+    plan_text, suggested_agents = await planner_suggest(task)
 
-    history = "=== PLANNER RECOMMENDATION ===\n" + plan_text + "\n"
+    history = "=== PLANNER OUTPUT ===\n" + plan_text + "\n"
 
-    # Auto-run each role
-    for i, role in enumerate(roles, start=1):
-        role_output = await run_role_step(task, role, history)
-        history += f"\n\n=== STEP {i}: {role} ===\n{role_output}\n"
+    # Use planner order but filter by user selection
+    execution_agents = [a for a in suggested_agents if a in selected_agents]
 
-    # Final evaluation summary
-    summary = await evaluate_workflow(task, history)
+    if not execution_agents:
+        return history + "\n❌ No agents selected.", ""
+
+    for idx, agent in enumerate(execution_agents, start=1):
+        output = run_role(task, agent, history)
+        history += f"\n\n=== STEP {idx}: {agent} ===\n{output}\n"
+
+    # Summary agent always runs last
+    summary = run_summary(task, history)
 
     return history, summary
 
 
-def run_sync(task):
+def run_sync(task, agents):
     loop = asyncio.get_event_loop()
-    return loop.run_until_complete(run_full_automation(task))
+    return loop.run_until_complete(run_automation(task, agents))
 
 
 # ============================================================
@@ -173,20 +170,45 @@ def run_sync(task):
 # ============================================================
 
 with gr.Blocks() as app:
-    gr.Markdown("# 🧠 Adaptive Multi-Agent Orchestrator (AMAO)")
-    gr.Markdown("Enter ANY task. AMAO will auto-select roles, run them, and generate a final evaluated summary.")
+    gr.Markdown("# 🤖 Automatic Multi-Agent Workflow")
+    gr.Markdown(
+        "Agents are planned, selected, and executed automatically. "
+        "A Summary Agent always runs at the end."
+    )
 
     task_box = gr.Textbox(
         label="Enter Task",
-        placeholder="Example: Build MVP of a fitness tracking app.\nOr: Plan a 5-day Tokyo trip.",
-        lines=4
+        lines=4,
+        placeholder="Example: Build an AI-powered resume analyzer."
     )
 
-    run_btn = gr.Button("🚀 Run Automated Workflow")
+    agent_selector = gr.CheckboxGroup(
+        label="Select Agents to Run (Summary Agent runs automatically)",
+        choices=[],
+        interactive=True
+    )
+
+    plan_btn = gr.Button("🧠 Generate Agent Plan")
+    run_btn = gr.Button("🚀 Run Automatic Workflow")
 
     workflow_log = gr.Textbox(label="Full Workflow Log", lines=22)
-    final_summary = gr.Textbox(label="Evaluator Summary", lines=14)
+    final_summary = gr.Textbox(label="Final Summary (Auto)", lines=14)
 
-    run_btn.click(run_sync, inputs=task_box, outputs=[workflow_log, final_summary])
+    # Planner step populates agent selector
+    async def populate_agents(task):
+        plan, agents = await planner_suggest(task)
+        return gr.CheckboxGroup(choices=agents, value=agents)
+
+    plan_btn.click(
+        populate_agents,
+        inputs=task_box,
+        outputs=agent_selector
+    )
+
+    run_btn.click(
+        run_sync,
+        inputs=[task_box, agent_selector],
+        outputs=[workflow_log, final_summary]
+    )
 
 app.launch()
