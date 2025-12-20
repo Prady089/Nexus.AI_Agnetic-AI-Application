@@ -48,18 +48,13 @@ def clean_list(text):
 
 
 # ============================================================
-# PLANNER (AI SUGGESTS AGENTS)
+# PLANNER
 # ============================================================
 
 PLANNER_PROMPT = """
 You are an expert AI orchestrator.
 
 Create 3–6 specialist agent roles for the TASK.
-
-Rules:
-- Business-friendly role names
-- No emojis or symbols
-- Consistent naming
 
 Return EXACT format:
 
@@ -89,11 +84,10 @@ def planner(task):
 def run_agent(task, agent, history):
     system = f"""
 You are acting as {agent}.
-Write in professional consulting language.
+Use professional consulting language.
 No markdown, no bullets, no emojis.
-Advance the work only.
 """
-    user = f"TASK:\n{task}\n\nTEAM HISTORY:\n{history}"
+    user = f"TASK:\n{task}\n\nHISTORY:\n{history}"
     return llm(system, user)
 
 
@@ -105,7 +99,7 @@ def summarize(task, history):
 
 
 # ============================================================
-# CHAT RENDERER (FIXED COLORS + ALIGNMENT)
+# CHAT RENDERER (TEXT COLOR HARD FIX)
 # ============================================================
 
 def alignment(agent, index):
@@ -120,42 +114,52 @@ def render_chat(agent_log):
     .chat {
       font-family: Arial, sans-serif;
     }
+
+    .bubble, .bubble * {
+      color: #000000 !important;   /* HARD FIX: always black text */
+    }
+
     .bubble {
       max-width: 70%;
       padding: 14px;
       margin: 10px;
       border-radius: 14px;
       white-space: pre-wrap;
-      color: #111827;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
     }
+
     .left {
       background: #E5E7EB;   /* Gradio grey */
       margin-right: auto;
     }
+
     .right {
-      background: #FEF3C7;   /* Gradio orange tint */
+      background: #FEF3C7;   /* Gradio orange */
       margin-left: auto;
     }
+
     .center {
       background: #EDE9FE;
       margin: 20px auto;
       text-align: center;
       font-weight: 600;
     }
+
     .agent {
       font-size: 12px;
       font-weight: 700;
       margin-bottom: 8px;
-      color: #F97316;        /* Gradio orange */
+      color: #F97316 !important; /* Orange agent label */
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
+
     .typing {
       font-style: italic;
-      color: #6B7280;
+      color: #374151 !important;
     }
     </style>
+
     <div class="chat">
     """
 
@@ -173,7 +177,7 @@ def render_chat(agent_log):
 
 
 # ============================================================
-# PDF EXPORT (FULL, SAFE)
+# PDF EXPORT
 # ============================================================
 
 def export_pdf(task, log, summary):
@@ -213,7 +217,7 @@ def export_pdf(task, log, summary):
 
 
 # ============================================================
-# CORE WORKFLOW (GENERATOR FOR STREAMING)
+# CORE WORKFLOW
 # ============================================================
 
 def run_all(task, agent_text):
@@ -255,17 +259,9 @@ with gr.Blocks() as app:
         placeholder="AI will suggest agents here"
     )
 
-    view_toggle = gr.Radio(
-        ["Chat View", "Report View"],
-        value="Chat View",
-        label="View Mode"
-    )
-
     run_btn = gr.Button("Run ORBITA")
 
     chat_view = gr.HTML()
-    report_view = gr.JSON(visible=False)
-
     summary_box = gr.Textbox(label="Executive Summary", lines=8)
     state_log = gr.State({})
 
@@ -276,24 +272,12 @@ with gr.Blocks() as app:
         _, roles = planner(task)
         return ", ".join(roles)
 
-    def toggle_view(mode, log):
-        if mode == "Chat View":
-            return render_chat(log), gr.update(visible=True), gr.update(visible=False)
-        else:
-            return log, gr.update(visible=False), gr.update(visible=True)
-
     suggest_btn.click(suggest_agents, task_box, agents_box)
 
     run_btn.click(
         run_all,
         inputs=[task_box, agents_box],
         outputs=[chat_view, state_log, summary_box]
-    )
-
-    view_toggle.change(
-        toggle_view,
-        inputs=[view_toggle, state_log],
-        outputs=[chat_view, chat_view, report_view]
     )
 
     pdf_btn.click(
