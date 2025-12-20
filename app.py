@@ -1,4 +1,4 @@
-import os, uuid, datetime, asyncio, time
+import os, uuid, datetime, time
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -105,42 +105,62 @@ def summarize(task, history):
 
 
 # ============================================================
-# CHAT RENDERER (WHATSAPP STYLE)
+# CHAT RENDERER (FIXED COLORS + ALIGNMENT)
 # ============================================================
 
-def alignment(agent):
+def alignment(agent, index):
     if agent.lower().startswith("summary"):
         return "center"
-    return "left" if hash(agent) % 2 == 0 else "right"
+    return "left" if index % 2 == 0 else "right"
 
 
 def render_chat(agent_log):
     html = """
     <style>
-    .chat { font-family: Arial, sans-serif; }
+    .chat {
+      font-family: Arial, sans-serif;
+    }
     .bubble {
       max-width: 70%;
-      padding: 12px;
+      padding: 14px;
       margin: 10px;
-      border-radius: 12px;
+      border-radius: 14px;
       white-space: pre-wrap;
+      color: #111827;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
     }
-    .left { background:#F1F5F9; margin-right:auto; }
-    .right { background:#DBEAFE; margin-left:auto; }
-    .center { background:#EDE9FE; margin:20px auto; text-align:center; }
+    .left {
+      background: #E5E7EB;   /* Gradio grey */
+      margin-right: auto;
+    }
+    .right {
+      background: #FEF3C7;   /* Gradio orange tint */
+      margin-left: auto;
+    }
+    .center {
+      background: #EDE9FE;
+      margin: 20px auto;
+      text-align: center;
+      font-weight: 600;
+    }
     .agent {
-      font-size:12px;
-      font-weight:bold;
-      margin-bottom:6px;
-      color:#374151;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #F97316;        /* Gradio orange */
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .typing { font-style: italic; color:#6B7280; }
+    .typing {
+      font-style: italic;
+      color: #6B7280;
+    }
     </style>
     <div class="chat">
     """
 
-    for agent, text in agent_log.items():
-        side = alignment(agent)
+    for idx, (agent, text) in enumerate(agent_log.items()):
+        side = alignment(agent, idx)
         html += f"""
         <div class="bubble {side}">
           <div class="agent">{agent}</div>
@@ -153,7 +173,7 @@ def render_chat(agent_log):
 
 
 # ============================================================
-# PDF EXPORT (SAFE, FULL)
+# PDF EXPORT (FULL, SAFE)
 # ============================================================
 
 def export_pdf(task, log, summary):
@@ -193,7 +213,7 @@ def export_pdf(task, log, summary):
 
 
 # ============================================================
-# CORE WORKFLOW (STREAMING VIA YIELD)
+# CORE WORKFLOW (GENERATOR FOR STREAMING)
 # ============================================================
 
 def run_all(task, agent_text):
@@ -207,7 +227,7 @@ def run_all(task, agent_text):
         log[agent] = "<span class='typing'>Agent thinking...</span>"
         yield render_chat(log), log, ""
 
-        time.sleep(0.3)
+        time.sleep(0.25)
 
         output = run_agent(task, agent, history)
         log[agent] = output
