@@ -1,4 +1,4 @@
-import os, re, uuid, datetime, asyncio, time
+import os, uuid, datetime, asyncio, time
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -32,13 +32,15 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def llm(system, user):
-    r = client.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "system", "content": system},
-                  {"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
         temperature=0.3,
     )
-    return r.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip()
 
 
 def clean_list(text):
@@ -46,7 +48,7 @@ def clean_list(text):
 
 
 # ============================================================
-# PLANNER
+# PLANNER (AI SUGGESTS AGENTS)
 # ============================================================
 
 PLANNER_PROMPT = """
@@ -56,8 +58,8 @@ Create 3–6 specialist agent roles for the TASK.
 
 Rules:
 - Business-friendly role names
-- Consistent naming
 - No emojis or symbols
+- Consistent naming
 
 Return EXACT format:
 
@@ -72,12 +74,12 @@ Linear_Workflow_Roles: <Role1>, <Role2>, <Role3>
 
 
 def planner(task):
-    out = llm(PLANNER_PROMPT, f"TASK:\n{task}")
+    output = llm(PLANNER_PROMPT, f"TASK:\n{task}")
     roles = []
-    for line in out.splitlines():
+    for line in output.splitlines():
         if line.startswith("Linear_Workflow_Roles:"):
             roles = clean_list(line.split(":")[1])
-    return out, roles
+    return output, roles
 
 
 # ============================================================
@@ -85,19 +87,19 @@ def planner(task):
 # ============================================================
 
 def run_agent(task, agent, history):
-    sys = f"""
+    system = f"""
 You are acting as {agent}.
-Use professional consulting language.
+Write in professional consulting language.
 No markdown, no bullets, no emojis.
 Advance the work only.
 """
-    usr = f"TASK:\n{task}\n\nHISTORY:\n{history}"
-    return llm(sys, usr)
+    user = f"TASK:\n{task}\n\nTEAM HISTORY:\n{history}"
+    return llm(system, user)
 
 
 def summarize(task, history):
     return llm(
-        "Produce a concise executive summary with insights and next steps.",
+        "Produce an executive summary with insights and next steps.",
         f"TASK:\n{task}\n\nFULL HISTORY:\n{history}"
     )
 
@@ -115,7 +117,7 @@ def alignment(agent):
 def render_chat(agent_log):
     html = """
     <style>
-    .chat { font-family: Arial; }
+    .chat { font-family: Arial, sans-serif; }
     .bubble {
       max-width: 70%;
       padding: 12px;
@@ -129,11 +131,10 @@ def render_chat(agent_log):
     .agent {
       font-size:12px;
       font-weight:bold;
-      cursor:pointer;
-      color:#374151;
       margin-bottom:6px;
+      color:#374151;
     }
-    .typing { font-style:italic; color:#6B7280; }
+    .typing { font-style: italic; color:#6B7280; }
     </style>
     <div class="chat">
     """
@@ -152,21 +153,23 @@ def render_chat(agent_log):
 
 
 # ============================================================
-# PDF EXPORT (UNCHANGED, STABLE)
+# PDF EXPORT (SAFE, FULL)
 # ============================================================
 
 def export_pdf(task, log, summary):
     path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
     styles = getSampleStyleSheet()
-    body = ParagraphStyle("b", parent=styles["BodyText"], fontSize=10, leading=14)
-    header = ParagraphStyle("h", parent=styles["Heading2"])
+
+    body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=10, leading=14)
+    header = ParagraphStyle("header", parent=styles["Heading2"])
 
     doc = SimpleDocTemplate(path, pagesize=A4)
     story = []
 
     if os.path.exists(LOGO_PATH):
-        story.append(RLImage(LOGO_PATH, width=3*inch, height=1*inch))
+        story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
     story.append(Spacer(1, 10))
+
     story.append(Paragraph(TAGLINE, styles["Heading2"]))
     story.append(Paragraph(f"{AUTHOR} • {AUTHOR_LINKEDIN}", body))
     story.append(Spacer(1, 12))
@@ -190,35 +193,30 @@ def export_pdf(task, log, summary):
 
 
 # ============================================================
-# CORE RUN LOGIC
+# CORE WORKFLOW (STREAMING VIA YIELD)
 # ============================================================
 
 def run_all(task, agent_text):
-    planner_out, suggested = planner(task)
-    agents = clean_list(agent_text) if agent_text.strip() else suggested
+    planner_out, suggested_agents = planner(task)
+    agents = clean_list(agent_text) if agent_text.strip() else suggested_agents
 
     log = {"Planner": planner_out}
     history = planner_out
 
-    for a in agents:
-        log[a] = "Agent thinking..."
-        yield log.copy(), ""
+    for agent in agents:
+        log[agent] = "<span class='typing'>Agent thinking...</span>"
+        yield render_chat(log), log, ""
 
-        out = run_agent(task, a, history)
-        log[a] = out
-        history += f"\n{a}:\n{out}"
-        yield log.copy(), ""
+        time.sleep(0.3)
+
+        output = run_agent(task, agent, history)
+        log[agent] = output
+        history += f"\n{agent}:\n{output}"
+        yield render_chat(log), log, ""
 
     summary = summarize(task, history)
     log["Summary"] = summary
-    yield log.copy(), summary
-
-
-def rerun_single(task, agent, current_log):
-    history = "\n".join(current_log.values())
-    out = run_agent(task, agent, history)
-    current_log[agent] = out
-    return current_log, out
+    yield render_chat(log), log, summary
 
 
 # ============================================================
@@ -232,7 +230,10 @@ with gr.Blocks() as app:
     task_box = gr.Textbox(label="Task", lines=4)
 
     suggest_btn = gr.Button("Suggest Agents")
-    agents_box = gr.Textbox(label="Agents (editable, comma-separated)")
+    agents_box = gr.Textbox(
+        label="Agents (editable, comma-separated)",
+        placeholder="AI will suggest agents here"
+    )
 
     view_toggle = gr.Radio(
         ["Chat View", "Report View"],
@@ -251,13 +252,9 @@ with gr.Blocks() as app:
     pdf_btn = gr.Button("Export PDF")
     pdf_file = gr.File()
 
-    def suggest(task):
+    def suggest_agents(task):
         _, roles = planner(task)
         return ", ".join(roles)
-
-    def run_stream(task, agents):
-        for log, summary in run_all(task, agents):
-            yield render_chat(log), log, summary
 
     def toggle_view(mode, log):
         if mode == "Chat View":
@@ -265,25 +262,25 @@ with gr.Blocks() as app:
         else:
             return log, gr.update(visible=False), gr.update(visible=True)
 
-    suggest_btn.click(suggest, task_box, agents_box)
+    suggest_btn.click(suggest_agents, task_box, agents_box)
 
     run_btn.click(
-        run_stream,
-        [task_box, agents_box],
-        [chat_view, state_log, summary_box],
-        stream=True
+        run_all,
+        inputs=[task_box, agents_box],
+        outputs=[chat_view, state_log, summary_box]
     )
 
     view_toggle.change(
         toggle_view,
-        [view_toggle, state_log],
-        [chat_view, chat_view, report_view]
+        inputs=[view_toggle, state_log],
+        outputs=[chat_view, chat_view, report_view]
     )
 
     pdf_btn.click(
         lambda t, l, s: export_pdf(t, l, s),
-        [task_box, state_log, summary_box],
-        pdf_file
+        inputs=[task_box, state_log, summary_box],
+        outputs=pdf_file
     )
 
+app.queue()
 app.launch()
