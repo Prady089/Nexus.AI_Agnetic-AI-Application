@@ -1,4 +1,4 @@
-import os, uuid, datetime, time
+import os, uuid, time
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -38,7 +38,7 @@ def llm(system, user):
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
-        temperature=0.3,
+        temperature=0.25,
     )
     return response.choices[0].message.content.strip()
 
@@ -55,6 +55,11 @@ PLANNER_PROMPT = """
 You are an expert AI orchestrator.
 
 Create 3–6 specialist agent roles for the TASK.
+
+Rules:
+- Business-friendly role names
+- No emojis or symbols
+- Consistent naming
 
 Return EXACT format:
 
@@ -78,28 +83,55 @@ def planner(task):
 
 
 # ============================================================
-# AGENT EXECUTION
+# ROLE-LOCKED AGENT EXECUTION (CRITICAL FIX)
 # ============================================================
 
 def run_agent(task, agent, history):
     system = f"""
-You are acting as {agent}.
-Use professional consulting language.
-No markdown, no bullets, no emojis.
+You are acting STRICTLY as a {agent}.
+
+ROLE CONSTRAINTS (MANDATORY):
+- Speak ONLY from the perspective of a {agent}
+- Do NOT describe the full end-to-end workflow
+- Do NOT summarize or conclude the overall solution
+- Do NOT repeat what other roles would cover
+- Focus ONLY on:
+  decisions, tools, risks, and recommendations
+  that belong to this role
+
+ASSUME:
+- Other expert agents exist
+- A Summary Agent will synthesize everything
+
+STYLE:
+- Professional consulting tone
+- Short focused paragraphs
+- No markdown, no bullets, no emojis
 """
-    user = f"TASK:\n{task}\n\nHISTORY:\n{history}"
+
+    recent_context = "\n".join(history.split("\n")[-12:])
+
+    user = f"""
+TASK:
+{task}
+
+RECENT CONTEXT (DO NOT REPEAT):
+{recent_context}
+
+Now contribute ONLY from the {agent} role.
+"""
     return llm(system, user)
 
 
 def summarize(task, history):
     return llm(
-        "Produce an executive summary with insights and next steps.",
-        f"TASK:\n{task}\n\nFULL HISTORY:\n{history}"
+        "You are the Summary Agent. Produce an executive summary with insights, trade-offs, and next steps.",
+        f"TASK:\n{task}\n\nFULL CONTEXT:\n{history}"
     )
 
 
 # ============================================================
-# CHAT RENDERER (TEXT COLOR HARD FIX)
+# CHAT RENDERER (WHATSAPP STYLE)
 # ============================================================
 
 def alignment(agent, index):
@@ -111,56 +143,29 @@ def alignment(agent, index):
 def render_chat(agent_log):
     html = """
     <style>
-    .chat {
-      font-family: Arial, sans-serif;
-    }
-
-    .bubble, .bubble * {
-      color: #000000 !important;   /* HARD FIX: always black text */
-    }
-
+    .bubble, .bubble * { color:#000 !important; }
     .bubble {
-      max-width: 70%;
-      padding: 14px;
-      margin: 10px;
-      border-radius: 14px;
-      white-space: pre-wrap;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      max-width:70%;
+      padding:14px;
+      margin:10px;
+      border-radius:14px;
+      white-space:pre-wrap;
+      box-shadow:0 1px 4px rgba(0,0,0,0.15);
     }
-
-    .left {
-      background: #E5E7EB;   /* Gradio grey */
-      margin-right: auto;
-    }
-
-    .right {
-      background: #FEF3C7;   /* Gradio orange */
-      margin-left: auto;
-    }
-
-    .center {
-      background: #EDE9FE;
-      margin: 20px auto;
-      text-align: center;
-      font-weight: 600;
-    }
-
+    .left { background:#E5E7EB; margin-right:auto; }
+    .right { background:#FEF3C7; margin-left:auto; }
+    .center { background:#EDE9FE; margin:20px auto; text-align:center; font-weight:600; }
     .agent {
-      font-size: 12px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #F97316 !important; /* Orange agent label */
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      font-size:12px;
+      font-weight:700;
+      margin-bottom:8px;
+      color:#F97316 !important;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
     }
-
-    .typing {
-      font-style: italic;
-      color: #374151 !important;
-    }
+    .typing { font-style:italic; color:#374151 !important; }
     </style>
-
-    <div class="chat">
+    <div>
     """
 
     for idx, (agent, text) in enumerate(agent_log.items()):
@@ -177,8 +182,16 @@ def render_chat(agent_log):
 
 
 # ============================================================
-# PDF EXPORT
+# PDF FORMATTER (PROFESSIONAL FIX)
 # ============================================================
+
+def format_agent_for_pdf(agent, text):
+    return [
+        ("Role Focus", f"The {agent} contributed insights specific to their functional responsibility."),
+        ("Key Insights", text),
+        ("Recommendations", f"Recommendations from the {agent} should be evaluated and synthesized by the Summary Agent.")
+    ]
+
 
 def export_pdf(task, log, summary):
     path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
@@ -186,29 +199,41 @@ def export_pdf(task, log, summary):
 
     body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=10, leading=14)
     header = ParagraphStyle("header", parent=styles["Heading2"])
+    sub = ParagraphStyle("sub", parent=styles["Heading4"])
 
     doc = SimpleDocTemplate(path, pagesize=A4)
     story = []
 
     if os.path.exists(LOGO_PATH):
-        story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
-    story.append(Spacer(1, 10))
+        story.append(RLImage(LOGO_PATH, width=3*inch, height=1*inch))
+    story.append(Spacer(1, 12))
 
     story.append(Paragraph(TAGLINE, styles["Heading2"]))
     story.append(Paragraph(f"{AUTHOR} • {AUTHOR_LINKEDIN}", body))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 16))
 
-    story.append(Paragraph("<b>Task</b>", styles["Heading3"]))
+    story.append(Paragraph("Task Overview", header))
     story.append(Paragraph(task, body))
     story.append(PageBreak())
 
     for agent, text in log.items():
-        story.append(Paragraph(agent, header))
-        for line in text.split("\n"):
-            story.append(Paragraph(line, body))
-        story.append(PageBreak())
+        if agent.lower().startswith("summary"):
+            continue
 
+        story.append(Paragraph(f"Role: {agent}", header))
+        story.append(Spacer(1, 6))
+
+        for title, content in format_agent_for_pdf(agent, text):
+            story.append(Paragraph(title, sub))
+            story.append(Paragraph(content, body))
+            story.append(Spacer(1, 10))
+
+        story.append(Spacer(1, 16))
+
+    story.append(PageBreak())
     story.append(Paragraph("Executive Summary", header))
+    story.append(Spacer(1, 8))
+
     for line in summary.split("\n"):
         story.append(Paragraph(line, body))
 
@@ -265,7 +290,7 @@ with gr.Blocks() as app:
     summary_box = gr.Textbox(label="Executive Summary", lines=8)
     state_log = gr.State({})
 
-    pdf_btn = gr.Button("Export PDF")
+    pdf_btn = gr.Button("Export Professional PDF")
     pdf_file = gr.File()
 
     def suggest_agents(task):
