@@ -1,4 +1,4 @@
-import os, uuid, time
+import os, uuid, time, re
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -48,7 +48,29 @@ def clean_list(text):
 
 
 # ============================================================
-# PLANNER
+# MARKDOWN CLEANER (USED EVERYWHERE)
+# ============================================================
+
+def clean_markdown(text: str) -> str:
+    if not text:
+        return ""
+
+    # Remove markdown headings
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+
+    # Remove bold / italic
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+
+    # Remove bullets and numbering
+    text = re.sub(r"^\s*-\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*\d+\.\s*", "", text, flags=re.MULTILINE)
+
+    return text.strip()
+
+
+# ============================================================
+# PLANNER (AI SUGGESTS AGENTS)
 # ============================================================
 
 PLANNER_PROMPT = """
@@ -79,29 +101,28 @@ def planner(task):
     for line in output.splitlines():
         if line.startswith("Linear_Workflow_Roles:"):
             roles = clean_list(line.split(":")[1])
-    return output, roles
+    return clean_markdown(output), roles
 
 
 # ============================================================
-# ROLE-LOCKED AGENT EXECUTION (CRITICAL FIX)
+# ROLE-LOCKED AGENT EXECUTION
 # ============================================================
 
 def run_agent(task, agent, history):
     system = f"""
 You are acting STRICTLY as a {agent}.
 
-ROLE CONSTRAINTS (MANDATORY):
+ROLE CONSTRAINTS:
 - Speak ONLY from the perspective of a {agent}
-- Do NOT describe the full end-to-end workflow
-- Do NOT summarize or conclude the overall solution
-- Do NOT repeat what other roles would cover
-- Focus ONLY on:
-  decisions, tools, risks, and recommendations
+- Do NOT describe the full end-to-end solution
+- Do NOT summarize or conclude the overall workflow
+- Do NOT repeat other roles
+- Focus ONLY on decisions, tools, risks, and recommendations
   that belong to this role
 
 ASSUME:
-- Other expert agents exist
-- A Summary Agent will synthesize everything
+- Other agents exist
+- A Summary Agent will synthesize
 
 STYLE:
 - Professional consulting tone
@@ -120,18 +141,20 @@ RECENT CONTEXT (DO NOT REPEAT):
 
 Now contribute ONLY from the {agent} role.
 """
-    return llm(system, user)
+    return clean_markdown(llm(system, user))
 
 
 def summarize(task, history):
-    return llm(
-        "You are the Summary Agent. Produce an executive summary with insights, trade-offs, and next steps.",
-        f"TASK:\n{task}\n\nFULL CONTEXT:\n{history}"
+    return clean_markdown(
+        llm(
+            "You are the Summary Agent. Produce an executive summary with insights, trade-offs, and next steps.",
+            f"TASK:\n{task}\n\nFULL CONTEXT:\n{history}"
+        )
     )
 
 
 # ============================================================
-# CHAT RENDERER (WHATSAPP STYLE)
+# CHAT RENDERER (CLEAN FRONTEND)
 # ============================================================
 
 def alignment(agent, index):
@@ -154,7 +177,12 @@ def render_chat(agent_log):
     }
     .left { background:#E5E7EB; margin-right:auto; }
     .right { background:#FEF3C7; margin-left:auto; }
-    .center { background:#EDE9FE; margin:20px auto; text-align:center; font-weight:600; }
+    .center {
+      background:#EDE9FE;
+      margin:20px auto;
+      text-align:center;
+      font-weight:600;
+    }
     .agent {
       font-size:12px;
       font-weight:700;
@@ -173,7 +201,7 @@ def render_chat(agent_log):
         html += f"""
         <div class="bubble {side}">
           <div class="agent">{agent}</div>
-          {text}
+          {clean_markdown(text)}
         </div>
         """
 
@@ -182,14 +210,14 @@ def render_chat(agent_log):
 
 
 # ============================================================
-# PDF FORMATTER (PROFESSIONAL FIX)
+# PDF FORMATTER (PROFESSIONAL)
 # ============================================================
 
 def format_agent_for_pdf(agent, text):
     return [
-        ("Role Focus", f"The {agent} contributed insights specific to their functional responsibility."),
-        ("Key Insights", text),
-        ("Recommendations", f"Recommendations from the {agent} should be evaluated and synthesized by the Summary Agent.")
+        ("Role Focus", f"The {agent} provided insights specific to their functional responsibility."),
+        ("Key Insights", clean_markdown(text)),
+        ("Recommendations", f"Recommendations from the {agent} should be evaluated and synthesized in the final decision.")
     ]
 
 
@@ -205,15 +233,15 @@ def export_pdf(task, log, summary):
     story = []
 
     if os.path.exists(LOGO_PATH):
-        story.append(RLImage(LOGO_PATH, width=3*inch, height=1*inch))
-    story.append(Spacer(1, 12))
+        story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
+    story.append(Spacer(1, 14))
 
     story.append(Paragraph(TAGLINE, styles["Heading2"]))
     story.append(Paragraph(f"{AUTHOR} • {AUTHOR_LINKEDIN}", body))
-    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 18))
 
     story.append(Paragraph("Task Overview", header))
-    story.append(Paragraph(task, body))
+    story.append(Paragraph(clean_markdown(task), body))
     story.append(PageBreak())
 
     for agent, text in log.items():
@@ -228,14 +256,14 @@ def export_pdf(task, log, summary):
             story.append(Paragraph(content, body))
             story.append(Spacer(1, 10))
 
-        story.append(Spacer(1, 16))
+        story.append(Spacer(1, 18))
 
     story.append(PageBreak())
     story.append(Paragraph("Executive Summary", header))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
 
     for line in summary.split("\n"):
-        story.append(Paragraph(line, body))
+        story.append(Paragraph(clean_markdown(line), body))
 
     doc.build(story)
     return path
@@ -253,7 +281,7 @@ def run_all(task, agent_text):
     history = planner_out
 
     for agent in agents:
-        log[agent] = "<span class='typing'>Agent thinking...</span>"
+        log[agent] = "Agent thinking..."
         yield render_chat(log), log, ""
 
         time.sleep(0.25)
