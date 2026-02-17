@@ -1,46 +1,48 @@
-import os, uuid, time, re
-import nest_asyncio
-nest_asyncio.apply()
-
+import os, uuid, time, re, shutil
 import gradio as gr
-from openai import OpenAI
-
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, PageBreak
-)
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch
-
+import google.generativeai as genai
 
 # ============================================================
-# BRAND CONFIG
+# BRAND & DIRECTORY CONFIG
 # ============================================================
 
-BRAND_NAME = "ORBITA"
-TAGLINE = "Many Perspectives. One Insight."
-AUTHOR = "Pradeep Kumar"
-AUTHOR_LINKEDIN = "https://www.linkedin.com/in/prady089/"
-LOGO_PATH = "orbita_logo_cropped.png"
+BRAND_NAME = "NEXUS.AI"
+TAGLINE = "High-Agency Software Synthesis"
+AUTHOR = "NEXUS CORE"
+AUTHOR_LINKEDIN = "#"
+LOGO_PATH = "workspace/orbita_logo_cropped.png"
 
+WORKSPACE_DIR = os.path.join(os.getcwd(), "workspace")
+if not os.path.exists(WORKSPACE_DIR):
+    os.makedirs(WORKSPACE_DIR)
 
 # ============================================================
 # OPENAI CONFIG
 # ============================================================
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+genai.configure(api_key="AIzaSyCtiYJt8vyQvi7qXh4Iqv0F-3iZEi2gfrA")
 
 def llm(system, user):
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=0.25,
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system + "\n\nImportant: Do not recite copyrighted material or training data verbatim. Be creative and synthesize new logic based on requirements."
+        )
+        response = model.generate_content(
+            user,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+            )
+        )
+        
+        # Check for recitation block
+        if hasattr(response, 'candidates') and response.candidates:
+            if response.candidates[0].finish_reason == 4:
+                return "AGENT ERROR: Recitation block (Finish Reason 4). The model detected it was copying known text too closely. Try re-phrasing your request."
+        
+        return response.text.strip()
+    except Exception as e:
+        return f"LLM_ERROR: {str(e)}"
 
 
 def clean_list(text):
@@ -48,40 +50,50 @@ def clean_list(text):
 
 
 # ============================================================
-# MARKDOWN CLEANER (USED EVERYWHERE)
+# UTILS: FILE EXTRACTION
 # ============================================================
 
-def clean_markdown(text: str) -> str:
-    if not text:
-        return ""
-
-    # Remove markdown headings
-    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
-
-    # Remove bold / italic
-    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
-    text = re.sub(r"\*(.*?)\*", r"\1", text)
-
-    # Remove bullets and numbering
-    text = re.sub(r"^\s*-\s*", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^\s*\d+\.\s*", "", text, flags=re.MULTILINE)
-
-    return text.strip()
+def extract_code_to_files(text):
+    """
+    Looks for pattern:
+    ### FILE: filename.ext
+    ```language
+    code
+    ```
+    """
+    pattern = r"### FILE:\s*([a-zA-Z0-9_\-\.]+)\n+```[a-z]*\n([\s\S]*?)```"
+    matches = re.finditer(pattern, text)
+    files_created = []
+    
+    for match in matches:
+        filename = match.group(1).strip()
+        content = match.group(2)
+        
+        # Ensure workspace exists
+        if not os.path.exists(WORKSPACE_DIR):
+            os.makedirs(WORKSPACE_DIR)
+            
+        file_path = os.path.join(WORKSPACE_DIR, filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        files_created.append(filename)
+        
+    return files_created
 
 
 # ============================================================
-# PLANNER (AI SUGGESTS AGENTS)
+# PLANNER (SOFTWARE LIFECYCLE AWARE)
 # ============================================================
 
 PLANNER_PROMPT = """
-You are an expert AI orchestrator.
+You are the Lead Architect of the ORBITA Software Factory.
+Your goal is to break down a software requirement into a standard SDLC workflow.
 
-Create 3–6 specialist agent roles for the TASK.
-
-Rules:
-- Business-friendly role names
-- No emojis or symbols
-- Consistent naming
+Roles to prioritize:
+- Business Analyst (BA): Define requirements and features.
+- System Architect: Design file structure and tech stack.
+- Developer: Write the actual source code.
+- QA Engineer: Test and validate the code.
 
 Return EXACT format:
 
@@ -89,9 +101,9 @@ Personas:
 1. <Role> - <Why>
 
 Workflow:
-2–4 sentences.
+2-4 sentences describing the development plan.
 
-Linear_Workflow_Roles: <Role1>, <Role2>, <Role3>
+Linear_Workflow_Roles: <Role1>, <Role2>, <Role3>, <Role4>
 """
 
 
@@ -101,243 +113,213 @@ def planner(task):
     for line in output.splitlines():
         if line.startswith("Linear_Workflow_Roles:"):
             roles = clean_list(line.split(":")[1])
-    return clean_markdown(output), roles
+    return output, roles
 
 
 # ============================================================
-# ROLE-LOCKED AGENT EXECUTION
+# ROLE-LOCKED AGENT EXECUTION (HIGH AGENCY V2)
 # ============================================================
 
 def run_agent(task, agent, history):
+    agent_lower = agent.lower()
+    is_developer = "developer" in agent_lower or "coder" in agent_lower
+    is_ba = "analyst" in agent_lower or "ba" in agent_lower
+    is_qa = "qa" in agent_lower or "test" in agent_lower or "test" in agent_lower
+    is_architect = "architect" in agent_lower or "design" in agent_lower
+
     system = f"""
-You are acting STRICTLY as a {agent}.
+You are acting STRICTLY as a {agent} in a high-speed Software Factory.
+
+CORE PRINCIPLE: EVERYTHING MUST BE AN ARTIFACT.
+- Do NOT just "talk" or give advice.
+- You MUST provide your work as a digital artifact (a file).
+- Use the format:
+  ### FILE: filename.ext
+  ```language
+  content
+  ```
 
 ROLE CONSTRAINTS:
-- Speak ONLY from the perspective of a {agent}
-- Do NOT describe the full end-to-end solution
-- Do NOT summarize or conclude the overall workflow
-- Do NOT repeat other roles
-- Focus ONLY on decisions, tools, risks, and recommendations
-  that belong to this role
-
-ASSUME:
-- Other agents exist
-- A Summary Agent will synthesize
-
-STYLE:
-- Professional consulting tone
-- Short focused paragraphs
-- No markdown, no bullets, no emojis
 """
 
-    recent_context = "\n".join(history.split("\n")[-12:])
+    if is_ba:
+        system += """
+- Your goal: Create the 'business_requirements.md'.
+- List user stories, features, and success criteria.
+- Ensure the Developer knows EXACTLY what to build.
+"""
+    elif is_architect:
+        system += """
+- Your goal: Create the 'architecture_design.md'.
+- Define the folder structure, data flow, and technology choices.
+- Tell the Developer which libraries to use.
+"""
+    elif is_developer:
+        system += """
+- Your goal: Create the actual source code files.
+- Read the 'business_requirements.md' and 'architecture_design.md' from history.
+- Write full, working code only.
+"""
+    elif is_qa:
+        system += """
+- Your goal: Create 'qa_test_report.md' and 'test_suite.py'.
+- CRITICALLY AUDIT the code written by the Developer in the history.
+- List specific bugs or edge cases (e.g., empty inputs, negative numbers).
+- If the code is perfect, sign off on it.
+"""
+    else:
+        system += f"- Provide your contribution as a relevant file in the '### FILE: filename.ext' format."
+
+    system += """
+STYLE:
+- Professional, technical, and artifact-focused.
+- No emojis. No conversational filler like "I will now setup...". Just deliver the file.
+"""
+
+    recent_context = "\n".join(history.split("\n")[-20:])
 
     user = f"""
-TASK:
-{task}
+TASK: {task}
 
-RECENT CONTEXT (DO NOT REPEAT):
+PREVIOUS WORK (Read this to ensure alignment):
 {recent_context}
 
-Now contribute ONLY from the {agent} role.
+Now, deliver your specific artifact/file for this stage.
 """
-    return clean_markdown(llm(system, user))
+    return llm(system, user)
 
 
 def summarize(task, history):
-    return clean_markdown(
-        llm(
-            "You are the Summary Agent. Produce an executive summary with insights, trade-offs, and next steps.",
-            f"TASK:\n{task}\n\nFULL CONTEXT:\n{history}"
-        )
+    return llm(
+        "You are the Release Manager. Summarize the developed application, list the files created in 'workspace/', and give run instructions.",
+        f"TASK:\n{task}\n\nFULL CONTEXT:\n{history}"
     )
 
 
 # ============================================================
-# CHAT RENDERER (CLEAN FRONTEND)
+# UI RENDERERS
 # ============================================================
-
-def alignment(agent, index):
-    if agent.lower().startswith("summary"):
-        return "center"
-    return "left" if index % 2 == 0 else "right"
-
 
 def render_chat(agent_log):
     html = """
     <style>
-    .bubble, .bubble * { color:#000 !important; }
-    .bubble {
-      max-width:70%;
-      padding:14px;
-      margin:10px;
-      border-radius:14px;
+     .bubble {
+      max-width:95%;
+      padding:20px;
+      margin:12px auto;
+      border-radius:12px;
       white-space:pre-wrap;
-      box-shadow:0 1px 4px rgba(0,0,0,0.15);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      line-height: 1.6;
+      color: #1e293b !important;
+      border: 1px solid #e5e7eb;
     }
-    .left { background:#E5E7EB; margin-right:auto; }
-    .right { background:#FEF3C7; margin-left:auto; }
-    .center {
-      background:#EDE9FE;
-      margin:20px auto;
-      text-align:center;
-      font-weight:600;
-    }
-    .agent {
-      font-size:12px;
-      font-weight:700;
-      margin-bottom:8px;
-      color:#F97316 !important;
+    .left { background:#ffffff; border-left: 6px solid #6366f1; }
+    .right { background:#fefce8; border-left: 6px solid #f59e0b; }
+    .center { background:#f5f3ff; text-align:center; font-weight:600; border: 1px solid #ddd6fe; margin: 30px auto; color: #4338ca !important; }
+    .agent-header {
+      font-size:11px;
+      font-weight:800;
+      color:#4f46e5;
       text-transform:uppercase;
-      letter-spacing:0.04em;
+      margin-bottom:10px;
+      letter-spacing: 0.05em;
     }
-    .typing { font-style:italic; color:#374151 !important; }
     </style>
-    <div>
     """
 
     for idx, (agent, text) in enumerate(agent_log.items()):
-        side = alignment(agent, idx)
+        side = "center" if agent.lower() in ["planner", "summary"] else ("left" if idx % 2 == 0 else "right")
+        
         html += f"""
         <div class="bubble {side}">
-          <div class="agent">{agent}</div>
-          {clean_markdown(text)}
+          <div class="agent-header">{agent}</div>
+          <div>{text}</div>
         </div>
         """
-
-    html += "</div>"
     return html
-
-
-# ============================================================
-# PDF FORMATTER (PROFESSIONAL)
-# ============================================================
-
-def format_agent_for_pdf(agent, text):
-    return [
-        ("Role Focus", f"The {agent} provided insights specific to their functional responsibility."),
-        ("Key Insights", clean_markdown(text)),
-        ("Recommendations", f"Recommendations from the {agent} should be evaluated and synthesized in the final decision.")
-    ]
-
-
-def export_pdf(task, log, summary):
-    path = f"/tmp/orbita_{uuid.uuid4().hex}.pdf"
-    styles = getSampleStyleSheet()
-
-    body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=10, leading=14)
-    header = ParagraphStyle("header", parent=styles["Heading2"])
-    sub = ParagraphStyle("sub", parent=styles["Heading4"])
-
-    doc = SimpleDocTemplate(path, pagesize=A4)
-    story = []
-
-    if os.path.exists(LOGO_PATH):
-        story.append(RLImage(LOGO_PATH, width=3 * inch, height=1 * inch))
-    story.append(Spacer(1, 14))
-
-    story.append(Paragraph(TAGLINE, styles["Heading2"]))
-    story.append(Paragraph(f"{AUTHOR} • {AUTHOR_LINKEDIN}", body))
-    story.append(Spacer(1, 18))
-
-    story.append(Paragraph("Task Overview", header))
-    story.append(Paragraph(clean_markdown(task), body))
-    story.append(PageBreak())
-
-    for agent, text in log.items():
-        if agent.lower().startswith("summary"):
-            continue
-
-        story.append(Paragraph(f"Role: {agent}", header))
-        story.append(Spacer(1, 6))
-
-        for title, content in format_agent_for_pdf(agent, text):
-            story.append(Paragraph(title, sub))
-            story.append(Paragraph(content, body))
-            story.append(Spacer(1, 10))
-
-        story.append(Spacer(1, 18))
-
-    story.append(PageBreak())
-    story.append(Paragraph("Executive Summary", header))
-    story.append(Spacer(1, 10))
-
-    for line in summary.split("\n"):
-        story.append(Paragraph(clean_markdown(line), body))
-
-    doc.build(story)
-    return path
 
 
 # ============================================================
 # CORE WORKFLOW
 # ============================================================
 
-def run_all(task, agent_text):
+def run_orbita_factory(task, agent_text):
+    # 1. Plan
     planner_out, suggested_agents = planner(task)
     agents = clean_list(agent_text) if agent_text.strip() else suggested_agents
 
     log = {"Planner": planner_out}
-    history = planner_out
+    history = f"PLANNER:\n{planner_out}"
+    all_files = []
 
+    # 2. Execute Agents
     for agent in agents:
-        log[agent] = "Agent thinking..."
-        yield render_chat(log), log, ""
-
-        time.sleep(0.25)
+        log[agent] = f"<i>{agent} is processing...</i>"
+        yield render_chat(log), log, "", f"Working: {agent}"
 
         output = run_agent(task, agent, history)
+        
+        # Extract files
+        new_files = extract_code_to_files(output)
+        all_files.extend(new_files)
+        
         log[agent] = output
-        history += f"\n{agent}:\n{output}"
-        yield render_chat(log), log, ""
+        history += f"\n\n{agent} OUTPUT:\n{output}"
+        
+        status = f"Files Generated: {', '.join(all_files)}" if all_files else f"Active: {agent}"
+        yield render_chat(log), log, "", status
 
+    # 3. Summarize
     summary = summarize(task, history)
     log["Summary"] = summary
-    yield render_chat(log), log, summary
+    
+    yield render_chat(log), log, summary, "✅ Deployment Complete"
 
 
 # ============================================================
-# UI
+# UI (GRADIO)
 # ============================================================
 
 with gr.Blocks() as app:
-    gr.Markdown(f"# 🧠 {BRAND_NAME}")
-    gr.Markdown(TAGLINE)
+    gr.HTML(f"""
+    <div style="text-align: center; padding: 30px; background: #1e293b; color: white; border-radius: 12px; margin-bottom: 25px;">
+        <h1 style="margin: 0; font-size: 2.2em; letter-spacing: -1px;">{BRAND_NAME}</h1>
+        <p style="margin: 5px 0 0 0; color: #94a3b8; font-weight: 500;">{TAGLINE}</p>
+    </div>
+    """)
 
-    task_box = gr.Textbox(label="Task", lines=4)
+    with gr.Row():
+        with gr.Column(scale=1):
+            task_input = gr.Textbox(
+                label="Product Requirement", 
+                placeholder="e.g. Create a simple calculator app with a clean UI",
+                lines=4
+            )
+            suggest_btn = gr.Button("📋 Generate Team Plan")
+            agents_input = gr.Textbox(
+                label="Project Roles",
+                placeholder="Agents involved in development..."
+            )
+            run_btn = gr.Button("🚀 Start Factory", variant="primary")
+            
+            status_view = gr.Label(label="Live Factory Status", value="Ready")
 
-    suggest_btn = gr.Button("Suggest Agents")
-    agents_box = gr.Textbox(
-        label="Agents (editable, comma-separated)",
-        placeholder="AI will suggest agents here"
-    )
-
-    run_btn = gr.Button("Run ORBITA")
-
-    chat_view = gr.HTML()
-    summary_box = gr.Textbox(label="Executive Summary", lines=8)
+        with gr.Column(scale=2):
+            chat_output = gr.HTML(label="Factory Output")
+            summary_output = gr.Textbox(label="Release Summary", lines=6)
+            
     state_log = gr.State({})
 
-    pdf_btn = gr.Button("Export Professional PDF")
-    pdf_file = gr.File()
-
-    def suggest_agents(task):
-        _, roles = planner(task)
-        return ", ".join(roles)
-
-    suggest_btn.click(suggest_agents, task_box, agents_box)
+    suggest_btn.click(lambda t: ", ".join(planner(t)[1]), task_input, agents_input)
 
     run_btn.click(
-        run_all,
-        inputs=[task_box, agents_box],
-        outputs=[chat_view, state_log, summary_box]
+        run_orbita_factory,
+        inputs=[task_input, agents_input],
+        outputs=[chat_output, state_log, summary_output, status_view]
     )
 
-    pdf_btn.click(
-        lambda t, l, s: export_pdf(t, l, s),
-        inputs=[task_box, state_log, summary_box],
-        outputs=pdf_file
-    )
 
-app.queue()
-app.launch()
+if __name__ == "__main__":
+    app.launch(theme=gr.themes.Default())
