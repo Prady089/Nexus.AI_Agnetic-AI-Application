@@ -3,6 +3,13 @@
 ![NEXUS.AI Architecture]
 NEXUS.AI is a state-of-the-art, multi-agent AI framework designed to bridge the gap between human requirements and production-ready software. By orchestrating a fleet of specialized neural agents, NEXUS.AI automates the entire Software Development Life Cycle (SDLC) in real-time.
 
+<img width="1919" height="865" alt="image" src="https://github.com/user-attachments/assets/6de555a1-616b-4c38-be55-eb92d13ea285" />
+
+<img width="1919" height="868" alt="image" src="https://github.com/user-attachments/assets/732e0bbf-ff98-49b4-b16a-8c688af9c289" />
+
+
+
+
 ## 🌌 The Vision
 Unlike traditional LLM wrappers, **NEXUS.AI** operates as a high-agency "factory." It doesn't just answer questions; it **synthesizes artifacts**. From requirements gathering to architectural design and final QA auditing, every step is handled by a specialized agent working in a synchronized neural loop.
 
