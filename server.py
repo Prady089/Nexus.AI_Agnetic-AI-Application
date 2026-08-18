@@ -1,11 +1,14 @@
 import os, re
 from datetime import datetime
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import google.generativeai as genai
 import json
 import asyncio
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -17,7 +20,7 @@ if not os.path.exists(WORKSPACE_DIR):
 # Mount entire workspace (sessions live as subdirs)
 app.mount("/workspace", StaticFiles(directory=WORKSPACE_DIR), name="workspace")
 
-genai.configure(api_key="AIzaSyAPRUBB_juhIP6UZ2cev5dkA83hz5NNM7E")
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 # ─── LLM ─────────────────────────────────────────────────────────────────────
 def llm(system, user, temperature=0.7):
@@ -272,4 +275,4 @@ Include: executive summary with quality rating /10, feature verification table (
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

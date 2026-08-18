@@ -1,6 +1,9 @@
 import os, uuid, time, re, shutil
 import gradio as gr
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================
 # BRAND & DIRECTORY CONFIG
@@ -20,7 +23,7 @@ if not os.path.exists(WORKSPACE_DIR):
 # OPENAI CONFIG
 # ============================================================
 
-genai.configure(api_key="AIzaSyCtiYJt8vyQvi7qXh4Iqv0F-3iZEi2gfrA")
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 def llm(system, user):
     try:
