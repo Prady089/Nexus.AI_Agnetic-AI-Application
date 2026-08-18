@@ -41,25 +41,39 @@ def llm(system, user, temperature=0.7):
         return f"LLM_ERROR: {str(e)}"
 
 # ─── FILE HELPERS ─────────────────────────────────────────────────────────────
+def walk_session_files(session_dir):
+    """Return all file paths in a session dir (relative, posix-style), recursively."""
+    paths = []
+    for root, _, files in os.walk(session_dir):
+        for f in files:
+            rel = os.path.relpath(os.path.join(root, f), session_dir).replace(os.sep, "/")
+            paths.append(rel)
+    return sorted(paths)
+
 def extract_files(text, session_dir):
-    """Parse ### FILE: blocks and write them into session_dir."""
-    pattern = r"### FILE:\s*([a-zA-Z0-9_\-\.]+)\n+```[a-z]*\n([\s\S]*?)```"
+    """Parse ### FILE: blocks (including subdirectory paths) and write them into session_dir."""
+    pattern = r"### FILE:\s*([a-zA-Z0-9_\-./\\]+)\n+```[a-z]*\n([\s\S]*?)```"
     matches = re.finditer(pattern, text)
     created = []
     for match in matches:
-        filename = match.group(1).strip()
+        rel_path = match.group(1).strip().replace("\\", "/").lstrip("/")
+        parts = [p for p in rel_path.split("/") if p not in ("", ".", "..")]
+        if not parts:
+            continue
+        rel_path = "/".join(parts)
         content = match.group(2)
-        with open(os.path.join(session_dir, filename), "w", encoding="utf-8") as f:
+        dest = os.path.join(session_dir, *parts)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "w", encoding="utf-8") as f:
             f.write(content)
-        created.append(filename)
+        created.append(rel_path)
     return created
 
 def read_session_files(session_dir):
     """Return all file contents in a session as a context string."""
     context = ""
     try:
-        files = [f for f in os.listdir(session_dir) if os.path.isfile(os.path.join(session_dir, f))]
-        for f in files:
+        for f in walk_session_files(session_dir):
             try:
                 with open(os.path.join(session_dir, f), "r", encoding="utf-8") as c:
                     context += f"\n--- FILE: {f} ---\n{c.read()[:3000]}\n"
@@ -102,7 +116,7 @@ async def list_sessions():
         )
         for sid in entries:
             path = os.path.join(WORKSPACE_DIR, sid)
-            files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            files = walk_session_files(path)
             sessions.append({
                 "id": sid,
                 "label": get_session_label(sid),
@@ -145,8 +159,9 @@ Keep responses focused and conversational (2-5 sentences). Never say 'I cannot'.
 @app.get("/intent")
 async def detect_intent(message: str):
     sys_prompt = """Intent classifier. Reply with exactly one word: 'build' or 'chat'.
-'build' = user wants to CREATE, MAKE, BUILD, ADD, CHANGE, FIX, UPDATE, REFINE, GENERATE software.
-'chat'  = user is asking a QUESTION, checking STATUS, saying hi, or having a conversation."""
+'build' = user wants to CREATE, MAKE, BUILD, ADD, CHANGE, FIX, UPDATE, REFINE, GENERATE software,
+          OR is reporting that the built app is broken/not working/has a bug (this requires a code fix, so it is 'build').
+'chat'  = user is asking a QUESTION about the project, saying hi, or having a conversation that does not require any code change."""
     result = llm(sys_prompt, message, temperature=0.1).strip().lower()
     return {"intent": "build" if "build" in result else "chat"}
 
@@ -263,7 +278,7 @@ Include: executive summary with quality rating /10, feature verification table (
                 yield f"data: {json.dumps({'event': 'log', 'agent': agent.upper(), 'text': summary, 'files': files_created, 'session_id': sid})}\n\n"
                 await asyncio.sleep(0.4)
 
-            count = len([f for f in os.listdir(session_dir) if os.path.isfile(os.path.join(session_dir, f))])
+            count = len(walk_session_files(session_dir))
             yield f"data: {json.dumps({'event': 'log', 'agent': 'RELEASE MANAGER', 'text': f'Build complete. {count} artifacts saved to session {get_session_label(sid)}. Switch sessions from the History tab.'})}\n\n"
             yield f"data: {json.dumps({'event': 'complete'})}\n\n"
 

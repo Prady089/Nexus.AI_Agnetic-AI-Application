@@ -825,27 +825,32 @@
         }
 
         // ── FACTORY ───────────────────────────────────────────────────
-        function executeFactory(prompt) {
+        function executeFactory(prompt, mode = 'initial', sid = '') {
             if (isFactoryRunning) return;
             isFactoryRunning = true;
             runBtn.disabled = true;
             runBtn.innerHTML = 'Synthesizing... <span class="material-symbols-outlined animate-spin text-sm">cycle</span>';
             statusBadge.innerText = 'PRODUCTION ACTIVE';
             hubIcon.classList.add('animate-pulse');
-            const url = '/run?task=' + encodeURIComponent(prompt) + '&mode=initial';
+            const url = '/run?task=' + encodeURIComponent(prompt) + '&mode=' + mode +
+                        (mode === 'refine' && sid ? '&session_id=' + encodeURIComponent(sid) : '');
             const es = new EventSource(url);
             es.onmessage = async (e) => {
                 const data = JSON.parse(e.data);
                 if (data.event === 'session') {
                     currentSessionId = data.session_id;
                     sessionLabel.textContent = data.label || data.session_id;
-                    artifactMap = {};
-                    projectExists = false;
-                    previewFrame.style.display = 'none';
-                    previewEmpty.style.display = 'block';
-                    previewFrame.src = 'about:blank';
-                    renderArtifacts();
-                    log('SESSION', 'New build started \u2192 ' + (data.label || data.session_id));
+                    if (mode === 'refine') {
+                        log('SESSION', 'Refining current build \u2192 ' + (data.label || data.session_id));
+                    } else {
+                        artifactMap = {};
+                        projectExists = false;
+                        previewFrame.style.display = 'none';
+                        previewEmpty.style.display = 'block';
+                        previewFrame.src = 'about:blank';
+                        renderArtifacts();
+                        log('SESSION', 'New build started \u2192 ' + (data.label || data.session_id));
+                    }
                 } else if (data.event === 'node') {
                     setActiveNode(data.node);
                 } else if (data.event === 'log') {
@@ -898,6 +903,9 @@
             } catch(e) {}
             if (intent === 'chat') {
                 executeChat(val);
+            } else if (projectExists && currentSessionId) {
+                log('USER INTENT', val);
+                executeFactory(val, 'refine', currentSessionId);
             } else {
                 consoleDiv.innerHTML = '';
                 log('USER INTENT', val);
