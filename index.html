@@ -157,6 +157,164 @@
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* CHAT BUBBLES */
+        .chat-bubble {
+            background: linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(168,85,247,0.08) 100%);
+            border: 1px solid rgba(45,212,191,0.2);
+            border-radius: 0 16px 16px 16px;
+            padding: 12px 16px;
+            margin-top: 6px;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .chat-bubble .log-text { color: #cbd5e1; font-size: 0.78rem; }
+        .user-bubble {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px 0 16px 16px;
+            padding: 10px 14px;
+            margin-bottom: 4px;
+            text-align: right;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .user-bubble .log-text { color: #e2e8f0; font-size: 0.78rem; }
+
+        /* TABS */
+        .proj-tab {
+            padding: 5px 14px;
+            border-radius: 100px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid transparent;
+            color: #64748b;
+            transition: all 0.2s;
+            background: transparent;
+        }
+        .proj-tab.active {
+            background: rgba(45,212,191,0.12);
+            border-color: var(--teal-glow);
+            color: var(--teal-glow);
+        }
+        .proj-tab:not(.active):hover { color: #94a3b8; }
+
+        /* ARTIFACT LIST */
+        .artifact-list { overflow-y: auto; flex: 1; scrollbar-width: none; }
+        .artifact-list::-webkit-scrollbar { display: none; }
+        .artifact-item {
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.02);
+            transition: border-color 0.2s;
+        }
+        .artifact-item:hover { border-color: rgba(255,255,255,0.15); }
+        .artifact-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .artifact-icon {
+            font-size: 13px;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .artifact-name {
+            flex: 1;
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+            color: #cbd5e1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .artifact-badge {
+            font-size: 8px;
+            padding: 2px 7px;
+            border-radius: 100px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .artifact-body {
+            display: none;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+        }
+        .artifact-body.open { display: block; }
+        .artifact-code {
+            font-family: 'Fira Code', monospace;
+            font-size: 9.5px;
+            color: #94a3b8;
+            padding: 10px 12px;
+            max-height: 180px;
+            overflow-y: auto;
+            white-space: pre;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 8px;
+            color: #64748b;
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { color: var(--teal-glow); border-color: var(--teal-glow); }
+        .artifact-empty {
+            text-align: center;
+            color: #475569;
+            font-size: 10px;
+            margin-top: 40px;
+            line-height: 1.8;
+        }
+
+        /* SESSION HISTORY */
+        .session-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.02);
+            transition: all 0.2s;
+        }
+        .session-item:hover { border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.05); }
+        .session-item.active-session { border-color: var(--teal-glow); background: rgba(45,212,191,0.08); }
+        .session-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255,255,255,0.2); flex-shrink: 0;
+        }
+        .session-item.active-session .session-dot { background: var(--teal-glow); box-shadow: 0 0 6px var(--teal-glow); }
+        .session-label { flex: 1; font-size: 10px; font-family: 'Fira Code', monospace; color: #94a3b8; }
+        .session-item.active-session .session-label { color: var(--teal-glow); }
+        .session-files-count { font-size: 8px; color: #475569; padding: 2px 7px; border-radius: 100px; background: rgba(255,255,255,0.05); }
+        .session-empty { text-align:center; color:#475569; font-size:10px; margin-top:40px; line-height:1.8; }
     </style>
 </head>
 
@@ -173,13 +331,6 @@
         <div class="flex items-center gap-6 text-xs font-medium tracking-widest text-slate-400">
             <span class="hover:text-[var(--teal-glow)] cursor-pointer transition-colors uppercase"
                 id="statusBadge">Network Status: Stable</span>
-
-            <div class="flex -space-x-2">
-                <div
-                    class="w-8 h-8 rounded-full border border-white/20 bg-slate-800 flex items-center justify-center overflow-hidden">
-                    <img src="/workspace/host_image.jpg" class="w-full h-full object-cover" alt="Profile">
-                </div>
-            </div>
         </div>
     </header>
     <main class="pt-20 h-screen grid grid-cols-12 gap-6 p-6">
@@ -324,19 +475,51 @@
                 class="absolute inset-0 bg-gradient-to-l from-[var(--purple-glow)]/5 to-transparent blur-3xl rounded-full">
             </div>
             <div class="holo-projection p-6 rounded-3xl border border-white/10 backdrop-blur-sm h-3/4 flex flex-col">
-                <div class="flex items-center justify-between mb-8">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-[var(--teal-glow)] animate-pulse"></span>
                         <h2 class="text-[10px] uppercase tracking-[0.3em] font-bold text-slate-400">Live Projection</h2>
                     </div>
-                    <span class="material-symbols-outlined text-slate-500 text-sm">visibility</span>
+                    <span id="sessionLabel" class="text-[8px] font-mono text-slate-600 truncate max-w-[100px]"></span>
                 </div>
-                <div class="flex-1 relative flex items-center justify-center overflow-hidden">
+                <!-- Tab Bar -->
+                <div class="flex gap-2 mb-4">
+                    <button class="proj-tab active" id="tab-preview" onclick="switchTab('preview')">Preview</button>
+                    <button class="proj-tab" id="tab-artifacts" onclick="switchTab('artifacts')">
+                        Artifacts <span id="artifactCount" style="display:none;margin-left:4px;background:rgba(45,212,191,0.2);color:var(--teal-glow);padding:1px 6px;border-radius:100px;">0</span>
+                    </button>
+                    <button class="proj-tab" id="tab-history" onclick="switchTab('history')">
+                        History <span id="historyCount" style="display:none;margin-left:4px;background:rgba(168,85,247,0.2);color:var(--purple-glow);padding:1px 6px;border-radius:100px;">0</span>
+                    </button>
+                </div>
+
+                <!-- PREVIEW PANEL -->
+                <div id="panel-preview" class="flex-1 relative flex items-center justify-center overflow-hidden">
                     <div id="previewEmpty" class="text-[10px] text-slate-500 text-center px-6">
                         Build artifacts will be projected here upon synthesis.
                     </div>
-                    <iframe id="previewFrame" src="about:blank" style="display: none;"></iframe>
+                    <iframe id="previewFrame" src="about:blank" style="display:none;width:100%;height:100%;border:none;border-radius:16px;"></iframe>
                 </div>
+
+                <!-- ARTIFACTS PANEL -->
+                <div id="panel-artifacts" class="flex-1 artifact-list" style="display:none;">
+                    <div class="artifact-empty" id="artifactEmpty">
+                        <span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.3;">folder_open</span>
+                        No artifacts yet.<br>Run a synthesis to generate files.
+                    </div>
+                    <div id="artifactItems"></div>
+                </div>
+
+                <!-- HISTORY PANEL -->
+                <div id="panel-history" class="flex-1 artifact-list" style="display:none;">
+                    <div class="session-empty" id="historyEmpty">
+                        <span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.3;">history</span>
+                        No previous sessions.<br>Each new build creates a session.
+                    </div>
+                    <div id="sessionItems"></div>
+                </div>
+
                 <div class="mt-4 pt-4 border-t border-white/5">
                     <button id="syncBtn"
                         class="w-full py-3 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-[0.2em] hover:bg-white/10 transition-all text-slate-300">
@@ -349,16 +532,18 @@
 
     <!-- FLOATING INPUT BAR -->
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-50">
+        <!-- Mode hint -->
+        <div id="modeHint" class="text-center mb-2" style="font-size:9px;letter-spacing:0.15em;color:#475569;text-transform:uppercase;"></div>
         <div
             class="bg-[rgba(15,23,42,0.8)] backdrop-blur-3xl rounded-full border border-white/10 p-2 pl-8 flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <span class="material-symbols-outlined text-[var(--teal-glow)] text-sm animate-pulse">auto_awesome</span>
+            <span id="inputIcon" class="material-symbols-outlined text-[var(--teal-glow)] text-sm animate-pulse">auto_awesome</span>
             <input id="taskInput"
                 class="bg-transparent border-none focus:ring-0 text-sm flex-1 text-slate-300 placeholder-slate-600 outline-none"
-                placeholder="Describe the software requirement..." type="text" />
+                placeholder="Build something or ask a question..." type="text" />
             <button id="runBtn"
                 class="px-8 py-3 rounded-full bg-gradient-to-r from-[var(--teal-glow)] to-[var(--purple-glow)] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2 group">
-                Synthesize
-                <span class="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">bolt</span>
+                Send
+                <span id="runBtnIcon" class="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">bolt</span>
             </button>
         </div>
     </div>
@@ -372,22 +557,264 @@
         const previewEmpty = document.getElementById('previewEmpty');
         const hubIcon = document.getElementById('hubIcon');
         const syncBtn = document.getElementById('syncBtn');
+        const artifactItems = document.getElementById('artifactItems');
+        const artifactEmpty = document.getElementById('artifactEmpty');
+        const artifactCount = document.getElementById('artifactCount');
+        const modeHint = document.getElementById('modeHint');
+        const sessionLabel = document.getElementById('sessionLabel');
+        const sessionItems = document.getElementById('sessionItems');
+        const historyCount = document.getElementById('historyCount');
+        const historyEmpty = document.getElementById('historyEmpty');
 
         let isFactoryRunning = false;
         let projectExists = false;
+        let artifactMap = {};
+        let currentSessionId = '';
+        let intentTimer = null;
 
-        function log(agent, text, files = []) {
+        // ── INTENT PREVIEW ──────────────────────────────────────────
+        taskInput.addEventListener('input', () => {
+            clearTimeout(intentTimer);
+            const val = taskInput.value.trim();
+            if (!val) { modeHint.textContent = ''; return; }
+            intentTimer = setTimeout(() => previewIntent(val), 600);
+        });
+
+        async function previewIntent(val) {
+            try {
+                const r = await fetch('/intent?message=' + encodeURIComponent(val));
+                const d = await r.json();
+                const ii = document.getElementById('inputIcon');
+                const ri = document.getElementById('runBtnIcon');
+                if (d.intent === 'build') {
+                    modeHint.textContent = '\u26a1 Build mode \u2014 new session will be created';
+                    modeHint.style.color = '#2dd4bf';
+                    if (ii) ii.textContent = 'bolt';
+                    if (ri) ri.textContent = 'bolt';
+                } else {
+                    modeHint.textContent = '\ud83d\udcac Chat mode \u2014 talking to Project Manager';
+                    modeHint.style.color = '#a855f7';
+                    if (ii) ii.textContent = 'chat';
+                    if (ri) ri.textContent = 'send';
+                }
+            } catch(e) {}
+        }
+
+        // ── TAB SWITCHING ───────────────────────────────────────────
+        function switchTab(tab) {
+            ['preview','artifacts','history'].forEach(t => {
+                const panel = document.getElementById('panel-' + t);
+                const btn   = document.getElementById('tab-' + t);
+                if (panel) panel.style.display = 'none';
+                if (btn)   btn.classList.remove('active');
+            });
+            const ap = document.getElementById('panel-' + tab);
+            if (ap) ap.style.display = (tab === 'preview') ? 'flex' : 'block';
+            document.getElementById('tab-' + tab)?.classList.add('active');
+            if (tab === 'history') loadHistory();
+        }
+
+        // ── FILE TYPE HELPERS ────────────────────────────────────────
+        function fileTypeInfo(name) {
+            const ext = name.split('.').pop().toLowerCase();
+            const map = {
+                html: { label:'HTML',  color:'#f97316', bg:'rgba(249,115,22,0.12)',  icon:'code' },
+                css:  { label:'CSS',   color:'#38bdf8', bg:'rgba(56,189,248,0.12)',  icon:'palette' },
+                js:   { label:'JS',    color:'#facc15', bg:'rgba(250,204,21,0.12)',  icon:'javascript' },
+                md:   { label:'MD',    color:'#a78bfa', bg:'rgba(167,139,250,0.12)', icon:'article' },
+                json: { label:'JSON',  color:'#34d399', bg:'rgba(52,211,153,0.12)',  icon:'data_object' },
+                txt:  { label:'TXT',   color:'#94a3b8', bg:'rgba(148,163,184,0.12)', icon:'text_snippet' },
+                py:   { label:'PY',    color:'#60a5fa', bg:'rgba(96,165,250,0.12)',  icon:'terminal' },
+            };
+            return map[ext] || { label: ext.toUpperCase() || 'FILE', color:'#94a3b8', bg:'rgba(148,163,184,0.1)', icon:'insert_drive_file' };
+        }
+
+        // ── RENDER ARTIFACTS ─────────────────────────────────────────
+        function renderArtifacts() {
+            const files = Object.keys(artifactMap);
+            artifactEmpty.style.display = files.length === 0 ? 'block' : 'none';
+            artifactCount.style.display = files.length === 0 ? 'none' : 'inline';
+            artifactCount.textContent = files.length;
+            artifactItems.innerHTML = '';
+            files.forEach(name => {
+                const info = fileTypeInfo(name);
+                const content = artifactMap[name] || '';
+                const cid = 'art-' + name.replace(/[^a-z0-9]/gi, '_');
+                const card = document.createElement('div');
+                card.className = 'artifact-item';
+                card.innerHTML =
+                    '<div class="artifact-header" onclick="toggleArtifact(\'' + cid + '\')">' +
+                    '<div class="artifact-icon" style="background:' + info.bg + ';">' +
+                    '<span class="material-symbols-outlined" style="font-size:13px;color:' + info.color + ';">' + info.icon + '</span></div>' +
+                    '<span class="artifact-name">' + name + '</span>' +
+                    '<span class="artifact-badge" style="background:' + info.bg + ';color:' + info.color + ';">' + info.label + '</span>' +
+                    '<span class="material-symbols-outlined" style="font-size:14px;color:#475569;margin-left:4px;" id="chevron-' + cid + '">expand_more</span></div>' +
+                    '<div class="artifact-body" id="body-' + cid + '">' +
+                    '<button class="copy-btn" onclick="copyArtifact(\'' + cid + '\', event)">Copy</button>' +
+                    '<div class="artifact-code" id="code-' + cid + '">' + escapeHtml(content) + '</div></div>';
+                artifactItems.appendChild(card);
+            });
+        }
+
+        function toggleArtifact(id) {
+            const body    = document.getElementById('body-' + id);
+            const chevron = document.getElementById('chevron-' + id);
+            const isOpen  = body.classList.toggle('open');
+            chevron.textContent = isOpen ? 'expand_less' : 'expand_more';
+        }
+
+        function copyArtifact(id, e) {
+            e.stopPropagation();
+            const text = document.getElementById('code-' + id).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = e.target;
+                btn.textContent = 'Copied!';
+                btn.style.color = '#2dd4bf';
+                setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 1500);
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // ── SESSION-SCOPED FILE FETCH ─────────────────────────────────
+        async function fetchArtifactContent(filename, sid) {
+            const s = sid || currentSessionId;
+            if (!s) return '';
+            try {
+                const r = await fetch('/workspace/' + s + '/' + filename + '?t=' + Date.now());
+                if (r.ok) return await r.text();
+            } catch(e) {}
+            return '';
+        }
+
+        // ── LOAD A SESSION ────────────────────────────────────────────
+        async function loadSession(sid, label) {
+            currentSessionId = sid;
+            sessionLabel.textContent = label || sid;
+            artifactMap = {};
+            renderArtifacts();
+            previewFrame.style.display = 'none';
+            previewEmpty.style.display = 'block';
+            previewFrame.src = 'about:blank';
+            try {
+                const sessions = await fetchSessions();
+                const session = sessions.find(s => s.id === sid);
+                if (session) {
+                    for (const f of session.files) {
+                        artifactMap[f] = await fetchArtifactContent(f, sid);
+                    }
+                    renderArtifacts();
+                    if (session.files.includes('index.html')) {
+                        projectExists = true;
+                        previewEmpty.style.display = 'none';
+                        previewFrame.style.display = 'block';
+                        previewFrame.src = '/workspace/' + sid + '/index.html?t=' + Date.now();
+                    }
+                }
+            } catch(e) {}
+            renderHistoryItems(await fetchSessions());
+        }
+
+        // ── HISTORY TAB ───────────────────────────────────────────────
+        async function fetchSessions() {
+            try { return await (await fetch('/sessions')).json(); } catch(e) { return []; }
+        }
+
+        function renderHistoryItems(sessions) {
+            historyEmpty.style.display = sessions.length === 0 ? 'block' : 'none';
+            historyCount.style.display = sessions.length === 0 ? 'none' : 'inline';
+            historyCount.textContent = sessions.length;
+            sessionItems.innerHTML = '';
+            sessions.forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'session-item' + (s.id === currentSessionId ? ' active-session' : '');
+                item.innerHTML =
+                    '<div class="session-dot"></div>' +
+                    '<span class="session-label">' + s.label + '</span>' +
+                    '<span class="session-files-count">' + s.file_count + ' files</span>';
+                item.onclick = () => {
+                    loadSession(s.id, s.label);
+                    log('SYSTEM', 'Switched to session: ' + s.label);
+                };
+                sessionItems.appendChild(item);
+            });
+        }
+
+        async function loadHistory() { renderHistoryItems(await fetchSessions()); }
+
+        // ── LOG ────────────────────────────────────────────────────────
+        function log(agent, text, files) {
+            files = files || [];
             const div = document.createElement('div');
             div.className = 'log-entry';
-            div.innerHTML = `
-                <div class="log-agent">${agent}</div>
-                <div class="log-text">${text.replace(/\n/g, '<br>')}</div>
-                <div class="flex flex-wrap gap-2">
-                    ${files.map(f => `<div class="log-file"><span class="material-symbols-outlined" style="font-size:10px">description</span> ${f}</div>`).join('')}
-                </div>
-            `;
+            const fileTags = files.map(f =>
+                '<div class="log-file"><span class="material-symbols-outlined" style="font-size:10px">description</span> ' + f + '</div>'
+            ).join('');
+            div.innerHTML =
+                '<div class="log-agent">' + agent + '</div>' +
+                '<div class="log-text">' + text.replace(/\n/g, '<br>') + '</div>' +
+                '<div class="flex flex-wrap gap-2">' + fileTags + '</div>';
             consoleDiv.appendChild(div);
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function logUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = '<div class="user-bubble"><div class="log-text">' + text + '</div></div>';
+            consoleDiv.appendChild(div);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function logChatReply(agent, text) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML =
+                '<div class="log-agent" style="color:#a855f7;">' + agent + '</div>' +
+                '<div class="chat-bubble"><div class="log-text">' + text.replace(/\n/g, '<br>') + '</div></div>';
+            consoleDiv.appendChild(div);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // ── CHAT ──────────────────────────────────────────────────────
+        function executeChat(message) {
+            if (isFactoryRunning) return;
+            isFactoryRunning = true;
+            runBtn.disabled = true;
+            statusBadge.innerText = 'CHATTING';
+            logUserMessage(message);
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'log-entry';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML =
+                '<div class="log-agent" style="color:#a855f7;">PROJECT MANAGER</div>' +
+                '<div class="chat-bubble"><div class="log-text" style="color:#64748b;">Thinking...</div></div>';
+            consoleDiv.appendChild(typingDiv);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            const url = '/chat?message=' + encodeURIComponent(message) + '&session_id=' + encodeURIComponent(currentSessionId);
+            const es = new EventSource(url);
+            es.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.event === 'chat') {
+                    document.getElementById('typing-indicator')?.remove();
+                    logChatReply(data.agent, data.text);
+                } else if (data.event === 'complete') {
+                    document.getElementById('typing-indicator')?.remove();
+                    es.close();
+                    isFactoryRunning = false;
+                    runBtn.disabled = false;
+                    statusBadge.innerText = 'ONLINE';
+                    modeHint.textContent = '';
+                }
+            };
+            es.onerror = () => {
+                document.getElementById('typing-indicator')?.remove();
+                es.close();
+                isFactoryRunning = false;
+                runBtn.disabled = false;
+            };
         }
 
         function setActiveNode(id) {
@@ -397,45 +824,54 @@
             });
         }
 
+        // ── FACTORY ───────────────────────────────────────────────────
         function executeFactory(prompt) {
             if (isFactoryRunning) return;
-
             isFactoryRunning = true;
             runBtn.disabled = true;
             runBtn.innerHTML = 'Synthesizing... <span class="material-symbols-outlined animate-spin text-sm">cycle</span>';
             statusBadge.innerText = 'PRODUCTION ACTIVE';
-            statusBadge.classList.add('text-[var(--teal-glow)]');
             hubIcon.classList.add('animate-pulse');
-
-            // Determine mode: if projectExists, use refine
-            const mode = projectExists ? 'refine' : 'initial';
-            const url = `/run?task=${encodeURIComponent(prompt)}&mode=${mode}`;
-            const eventSource = new EventSource(url);
-
-            eventSource.onmessage = (e) => {
+            const url = '/run?task=' + encodeURIComponent(prompt) + '&mode=initial';
+            const es = new EventSource(url);
+            es.onmessage = async (e) => {
                 const data = JSON.parse(e.data);
-
-                if (data.event === 'node') {
+                if (data.event === 'session') {
+                    currentSessionId = data.session_id;
+                    sessionLabel.textContent = data.label || data.session_id;
+                    artifactMap = {};
+                    projectExists = false;
+                    previewFrame.style.display = 'none';
+                    previewEmpty.style.display = 'block';
+                    previewFrame.src = 'about:blank';
+                    renderArtifacts();
+                    log('SESSION', 'New build started \u2192 ' + (data.label || data.session_id));
+                } else if (data.event === 'node') {
                     setActiveNode(data.node);
                 } else if (data.event === 'log') {
                     log(data.agent, data.text, data.files || []);
-
-                    if (data.agent.includes('DEVELOPER') || data.files?.some(f => f.endsWith('.html'))) {
+                    if (data.files && data.files.length > 0) {
+                        for (const f of data.files) {
+                            artifactMap[f] = await fetchArtifactContent(f, currentSessionId);
+                        }
+                        renderArtifacts();
+                    }
+                    if (data.files && data.files.some(f => f.endsWith('.html'))) {
                         projectExists = true;
                         previewEmpty.style.display = 'none';
                         previewFrame.style.display = 'block';
-                        previewFrame.src = '/workspace/index.html?t=' + Date.now();
+                        previewFrame.src = '/workspace/' + currentSessionId + '/index.html?t=' + Date.now();
                     }
                 } else if (data.event === 'complete') {
                     document.querySelectorAll('.relative[id^="node-"]').forEach(n => n.classList.add('complete'));
-                    eventSource.close();
+                    es.close();
                     resetUI('COMPLETE');
+                    loadHistory();
                 }
             };
-
-            eventSource.onerror = () => {
+            es.onerror = () => {
                 log('SYSTEM ERROR', 'Neural link severed. Agents offline.');
-                eventSource.close();
+                es.close();
                 resetUI('ERROR');
             };
         }
@@ -443,32 +879,48 @@
         function resetUI(status) {
             isFactoryRunning = false;
             runBtn.disabled = false;
-            runBtn.innerHTML = 'Synthesize <span class="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">bolt</span>';
+            runBtn.innerHTML = 'Send <span class="material-symbols-outlined text-sm" id="runBtnIcon">bolt</span>';
             statusBadge.innerText = status;
             hubIcon.classList.remove('animate-pulse');
         }
 
-        runBtn.addEventListener('click', () => {
+        // ── SMART SEND ────────────────────────────────────────────────
+        async function handleSend() {
             const val = taskInput.value.trim();
-            if (!val) return;
-            if (!isFactoryRunning) {
-                if (!projectExists) consoleDiv.innerHTML = '';
+            if (!val || isFactoryRunning) return;
+            taskInput.value = '';
+            modeHint.textContent = '';
+            let intent = 'build';
+            try {
+                const r = await fetch('/intent?message=' + encodeURIComponent(val));
+                const d = await r.json();
+                intent = d.intent;
+            } catch(e) {}
+            if (intent === 'chat') {
+                executeChat(val);
+            } else {
+                consoleDiv.innerHTML = '';
                 log('USER INTENT', val);
                 executeFactory(val);
-                taskInput.value = '';
             }
-        });
+        }
 
-        taskInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') runBtn.click();
-        });
+        runBtn.addEventListener('click', handleSend);
+        taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
 
-        syncBtn.addEventListener('click', () => {
-            if (projectExists) {
-                previewFrame.src = '/workspace/index.html?t=' + Date.now();
+        syncBtn.addEventListener('click', async () => {
+            if (projectExists && currentSessionId) {
+                previewFrame.src = '/workspace/' + currentSessionId + '/index.html?t=' + Date.now();
                 log('SYSTEM', 'Synchronizing preview stream...');
             }
+            for (const f of Object.keys(artifactMap)) {
+                artifactMap[f] = await fetchArtifactContent(f, currentSessionId);
+            }
+            renderArtifacts();
         });
+
+        // Load history count on startup
+        loadHistory();
     </script>
 </body>
 

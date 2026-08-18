@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+
+# Generated workspace sessions (runtime data, not source code)
+workspace/
+
+# Temp patch files
+new_script.js
+patch_html.py
+
+# OS
+.DS_Store
+Thumbs.db
