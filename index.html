@@ -55,20 +55,40 @@
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+        .agent-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .agent-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
         .organic-bubble {
-            border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: float 6s ease-in-out infinite;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .agent-node:hover .organic-bubble {
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: scale(1.06);
         }
         .organic-bubble.active {
             background: rgba(45, 212, 191, 0.15);
             border-color: var(--teal-glow);
-            box-shadow: 0 0 40px rgba(45, 212, 191, 0.4), inset 0 0 20px rgba(45, 212, 191, 0.2);
-            transform: scale(1.15);
-            filter: brightness(1.2);
+            box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12), 0 0 30px rgba(45, 212, 191, 0.35);
+            transform: scale(1.1);
         }
         .organic-bubble.active .material-symbols-outlined {
             color: white;
@@ -129,6 +149,11 @@
             font-size: 0.6rem;
             letter-spacing: 0.2em;
             margin-bottom: 8px;
+        }
+        .log-agent::before {
+            content: '\25CF';
+            margin-right: 6px;
+            font-size: 0.55rem;
         }
         .log-text {
             color: #94a3b8;
@@ -328,141 +353,83 @@
                 class="font-['Orbitron'] text-2xl font-black tracking-[0.4em] relative z-10 bg-clip-text text-transparent bg-gradient-to-r from-[var(--teal-glow)] to-[var(--purple-glow)]">
                 NEXUS.AI</h1>
         </div>
-        <div class="flex items-center gap-6 text-xs font-medium tracking-widest text-slate-400">
-            <span class="hover:text-[var(--teal-glow)] cursor-pointer transition-colors uppercase"
-                id="statusBadge">Network Status: Stable</span>
+        <div class="flex items-center gap-4">
+            <span id="statusBadge"
+                class="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold tracking-[0.15em] uppercase text-slate-300">Online</span>
+            <div id="headerOrb"
+                class="w-8 h-8 rounded-full bg-gradient-to-tr from-[var(--teal-glow)] to-[var(--purple-glow)] flex items-center justify-center shadow-[0_0_20px_rgba(45,212,191,0.35)]">
+                <span class="material-symbols-outlined text-white" style="font-size:16px;">smart_toy</span>
+            </div>
         </div>
     </header>
     <main class="pt-20 h-screen grid grid-cols-12 gap-6 p-6">
-        <!-- AGENT BUBBLES -->
-        <aside class="col-span-3 flex flex-col justify-start relative py-2 px-1">
+        <!-- AGENT COLUMN -->
+        <aside class="col-span-2 flex flex-col items-center justify-center gap-9 relative py-2">
             <div
-                class="absolute inset-0 bg-gradient-to-r from-[var(--teal-glow)]/5 to-transparent blur-3xl rounded-full pointer-events-none">
+                class="absolute inset-0 bg-gradient-to-b from-[var(--teal-glow)]/5 to-transparent blur-3xl rounded-full pointer-events-none">
             </div>
 
-            <!-- PLANNER (Left) -->
-            <div class="relative w-32 h-32 group cursor-pointer shrink-0 self-start ml-4" id="node-planner">
-                <div class="scrolling-thought">
-                    <svg class="w-full h-full fill-slate-500 text-[2.5px] uppercase tracking-widest"
-                        viewBox="0 0 100 100">
-                        <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent"
-                            id="curve0"></path>
-                        <text>
-                            <textPath href="#curve0">Mapping objectives... Orchestrating pathways...</textPath>
-                        </text>
-                    </svg>
+            <div class="relative agent-node" id="node-planner">
+                <div class="organic-bubble">
+                    <span class="material-symbols-outlined text-blue-400 text-xl">psychology_alt</span>
                 </div>
-                <div
-                    class="organic-bubble absolute inset-0 flex flex-col items-center justify-center p-2 text-center z-10 transition-transform group-hover:scale-105">
-                    <div
-                        class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center mb-1 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
-                        <span class="material-symbols-outlined text-blue-400 text-lg">psychology_alt</span>
-                    </div>
-                    <span class="text-[9px] font-bold tracking-tighter text-blue-400 uppercase">Planner</span>
-                </div>
+                <span class="agent-label text-blue-400">Planner</span>
             </div>
 
-            <!-- BA (Right) -->
-            <div class="relative w-32 h-32 group cursor-pointer shrink-0 self-end mr-4 -mt-10" id="node-ba">
-                <div class="scrolling-thought" style="animation-duration: 25s;">
-                    <svg class="w-full h-full fill-slate-500 text-[2.8px] uppercase tracking-widest"
-                        viewBox="0 0 100 100">
-                        <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent"
-                            id="curve1"></path>
-                        <text>
-                            <textPath href="#curve1">Defining constraints... Extracting reqs...</textPath>
-                        </text>
-                    </svg>
+            <div class="relative agent-node" id="node-ba">
+                <div class="organic-bubble">
+                    <span class="material-symbols-outlined text-[var(--teal-glow)] text-xl">architecture</span>
                 </div>
-                <div class="organic-bubble absolute inset-0 flex flex-col items-center justify-center p-2 text-center z-10 transition-transform group-hover:scale-105"
-                    style="border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;">
-                    <div
-                        class="w-8 h-8 rounded-full bg-[var(--teal-glow)]/10 flex items-center justify-center mb-1 shadow-[0_0_15px_rgba(45,212,191,0.2)]">
-                        <span class="material-symbols-outlined text-[var(--teal-glow)] text-xl">architecture</span>
-                    </div>
-                    <span class="text-[9px] font-bold tracking-tighter text-[var(--teal-glow)] uppercase">BA</span>
-                </div>
+                <span class="agent-label text-[var(--teal-glow)]">BA</span>
             </div>
 
-            <!-- ARCHITECT (Left) -->
-            <div class="relative w-32 h-32 group cursor-pointer shrink-0 self-start ml-4 -mt-10" id="node-arch">
-                <div class="scrolling-thought" style="animation-duration: 22s;">
-                    <svg class="w-full h-full fill-slate-500 text-[2.8px] uppercase tracking-widest"
-                        viewBox="0 0 100 100">
-                        <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent"
-                            id="curve3"></path>
-                        <text>
-                            <textPath href="#curve3">Architecting systems... Mapping nodes...</textPath>
-                        </text>
-                    </svg>
+            <div class="relative agent-node" id="node-arch">
+                <div class="organic-bubble">
+                    <span class="material-symbols-outlined text-amber-400 text-xl">hub</span>
                 </div>
-                <div class="organic-bubble absolute inset-0 flex flex-col items-center justify-center p-2 text-center z-10 transition-transform group-hover:scale-105"
-                    style="animation-delay: -1s; border-radius: 40% 60% 30% 70% / 60% 30% 70% 40%;">
-                    <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center mb-1">
-                        <span class="material-symbols-outlined text-amber-400 text-lg">hub</span>
-                    </div>
-                    <span class="text-[9px] font-bold tracking-tighter text-amber-400 uppercase">Architect</span>
-                </div>
+                <span class="agent-label text-amber-400">Architect</span>
             </div>
 
-            <!-- DEVELOPER (Right) -->
-            <div class="relative w-32 h-32 group cursor-pointer shrink-0 self-end mr-4 -mt-10" id="node-dev">
-                <div class="scrolling-thought" style="animation-direction: reverse; animation-duration: 25s;">
-                    <svg class="w-full h-full fill-slate-500 text-[3.5px] uppercase tracking-widest"
-                        viewBox="0 0 100 100">
-                        <path d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" fill="transparent"
-                            id="curve2"></path>
-                        <text>
-                            <textPath href="#curve2">Generating modules... Synthesizing logic...</textPath>
-                        </text>
-                    </svg>
+            <div class="relative agent-node" id="node-dev">
+                <div class="organic-bubble">
+                    <span class="material-symbols-outlined text-[var(--purple-glow)] text-xl">code</span>
                 </div>
-                <div class="organic-bubble absolute inset-0 flex flex-col items-center justify-center p-2 text-center z-10 transition-transform group-hover:scale-105"
-                    style="animation-delay: -2s; border-radius: 60% 40% 30% 70% / 50% 30% 70% 50%;">
-                    <div
-                        class="w-8 h-8 rounded-full bg-[var(--purple-glow)]/10 flex items-center justify-center mb-1 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-                        <span class="material-symbols-outlined text-[var(--purple-glow)] text-lg">code</span>
-                    </div>
-                    <span
-                        class="text-[9px] font-bold tracking-tighter text-[var(--purple-glow)] uppercase">Developer</span>
-                </div>
+                <span class="agent-label text-[var(--purple-glow)]">Developer</span>
             </div>
 
-            <!-- QA (Left) -->
-            <div class="relative w-32 h-32 group cursor-pointer shrink-0 self-start ml-4 -mt-10" id="node-qa">
-                <div class="scrolling-thought" style="animation-duration: 28s; animation-direction: reverse;">
-                    <svg class="w-full h-full fill-slate-500 text-[3px] uppercase tracking-widest"
-                        viewBox="0 0 100 100">
-                        <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent"
-                            id="curve4"></path>
-                        <text>
-                            <textPath href="#curve4">Auditing logic... Verifying integrity...</textPath>
-                        </text>
-                    </svg>
+            <div class="relative agent-node" id="node-qa">
+                <div class="organic-bubble">
+                    <span class="material-symbols-outlined text-slate-400 text-xl">shield</span>
                 </div>
-                <div class="organic-bubble absolute inset-0 flex flex-col items-center justify-center p-2 text-center z-10 transition-transform group-hover:scale-105"
-                    style="animation-delay: -4s; border-radius: 30% 70% 50% 50% / 50% 50% 30% 70%;">
-                    <div class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center mb-1">
-                        <span class="material-symbols-outlined text-slate-400 text-lg">shield</span>
-                    </div>
-                    <span class="text-[9px] font-bold tracking-tighter text-slate-400 uppercase">QA</span>
-                </div>
+                <span class="agent-label text-slate-400">QA</span>
             </div>
         </aside>
 
         <!-- CENTRAL LOG / CONSOLE -->
-        <section class="col-span-6 flex items-center justify-center relative">
-            <div class="circular-editor w-full max-w-2xl border border-white/5 p-12 overflow-hidden">
-                <div class="absolute inset-0 bg-radial-gradient from-[var(--purple-glow)]/5 to-transparent"></div>
-                <!-- HUB ICON (Center) -->
-                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-                    <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-[var(--teal-glow)] to-[var(--purple-glow)] flex items-center justify-center shadow-[0_0_50px_rgba(168,85,247,0.4)] animate-[pulse_3s_infinite]"
-                        id="hubIcon">
-                        <span class="material-symbols-outlined text-white text-3xl">hub</span>
+        <section class="col-span-7 flex flex-col relative">
+            <div class="flex-1 flex flex-col rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-sm overflow-hidden">
+                <!-- Console header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span id="hubIcon" class="material-symbols-outlined text-[var(--teal-glow)]" style="font-size:18px;">auto_awesome</span>
+                        <h2 class="text-[11px] uppercase tracking-[0.3em] font-bold text-slate-300">Neural Console</h2>
                     </div>
+                    <button id="newSessionBtn" type="button"
+                        class="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.15em] font-bold text-slate-500 hover:text-[var(--teal-glow)] transition-colors">
+                        <span class="material-symbols-outlined" style="font-size:14px;">refresh</span> New Session
+                    </button>
                 </div>
+                <!-- Session pill -->
+                <div class="flex items-center justify-between px-6 pt-4 shrink-0">
+                    <span id="sessionLabel"
+                        class="text-[9px] font-mono uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--teal-glow)]"
+                        style="display:none;"></span>
+                    <span id="consoleDot" class="w-2 h-2 rounded-full bg-[var(--teal-glow)] animate-pulse" style="display:none;"></span>
+                </div>
+                <!-- File chips -->
+                <div id="consoleFiles" class="flex flex-wrap gap-2 px-6 pt-3 shrink-0"></div>
 
-                <div class="log-container relative z-10" id="console">
+                <div class="log-container relative z-10 flex-1" id="console">
                     <div style="color: var(--text-muted); font-style: italic; text-align: center; margin-top: 40%;">
                         Factory offline. Awaiting neural input...</div>
                 </div>
@@ -481,7 +448,7 @@
                         <span class="w-2 h-2 rounded-full bg-[var(--teal-glow)] animate-pulse"></span>
                         <h2 class="text-[10px] uppercase tracking-[0.3em] font-bold text-slate-400">Live Projection</h2>
                     </div>
-                    <span id="sessionLabel" class="text-[8px] font-mono text-slate-600 truncate max-w-[100px]"></span>
+                    <span class="material-symbols-outlined text-[var(--teal-glow)]" style="font-size:16px;">visibility</span>
                 </div>
                 <!-- Tab Bar -->
                 <div class="flex gap-2 mb-4">
@@ -520,10 +487,14 @@
                     <div id="sessionItems"></div>
                 </div>
 
-                <div class="mt-4 pt-4 border-t border-white/5">
+                <div class="mt-4 pt-4 border-t border-white/5 flex gap-3">
                     <button id="syncBtn"
-                        class="w-full py-3 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-[0.2em] hover:bg-white/10 transition-all text-slate-300">
-                        Synchronize Build
+                        class="flex-1 py-3 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-[0.2em] hover:bg-white/10 transition-all text-slate-300">
+                        Sync
+                    </button>
+                    <button id="launchBtn"
+                        class="flex-1 py-3 rounded-full bg-gradient-to-r from-[var(--teal-glow)] to-[var(--purple-glow)] text-white text-[10px] font-black uppercase tracking-[0.2em] hover:brightness-110 transition-all">
+                        Launch
                     </button>
                 </div>
             </div>
@@ -562,9 +533,29 @@
         const artifactCount = document.getElementById('artifactCount');
         const modeHint = document.getElementById('modeHint');
         const sessionLabel = document.getElementById('sessionLabel');
+        const consoleDot = document.getElementById('consoleDot');
+        const consoleFiles = document.getElementById('consoleFiles');
+        const newSessionBtn = document.getElementById('newSessionBtn');
+        const launchBtn = document.getElementById('launchBtn');
         const sessionItems = document.getElementById('sessionItems');
         const historyCount = document.getElementById('historyCount');
         const historyEmpty = document.getElementById('historyEmpty');
+
+        function formatSessionLabel(s) {
+            return 'SESSION: ' + (s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        }
+
+        function showSessionPill(label) {
+            sessionLabel.textContent = formatSessionLabel(label);
+            sessionLabel.style.display = 'inline-block';
+            consoleDot.style.display = 'inline-block';
+        }
+
+        function hideSessionPill() {
+            sessionLabel.style.display = 'none';
+            consoleDot.style.display = 'none';
+            sessionLabel.textContent = '';
+        }
 
         let isFactoryRunning = false;
         let projectExists = false;
@@ -629,8 +620,17 @@
             return map[ext] || { label: ext.toUpperCase() || 'FILE', color:'#94a3b8', bg:'rgba(148,163,184,0.1)', icon:'insert_drive_file' };
         }
 
+        // ── CONSOLE FILE CHIPS ─────────────────────────────────────────
+        function renderConsoleFiles() {
+            const files = Object.keys(artifactMap);
+            consoleFiles.innerHTML = files.map(f =>
+                '<div class="log-file" style="margin-top:0;"><span class="material-symbols-outlined" style="font-size:10px">description</span> ' + f + '</div>'
+            ).join('');
+        }
+
         // ── RENDER ARTIFACTS ─────────────────────────────────────────
         function renderArtifacts() {
+            renderConsoleFiles();
             const files = Object.keys(artifactMap);
             artifactEmpty.style.display = files.length === 0 ? 'block' : 'none';
             artifactCount.style.display = files.length === 0 ? 'none' : 'inline';
@@ -692,7 +692,7 @@
         // ── LOAD A SESSION ────────────────────────────────────────────
         async function loadSession(sid, label) {
             currentSessionId = sid;
-            sessionLabel.textContent = label || sid;
+            showSessionPill(label || sid);
             artifactMap = {};
             renderArtifacts();
             previewFrame.style.display = 'none';
@@ -839,7 +839,7 @@
                 const data = JSON.parse(e.data);
                 if (data.event === 'session') {
                     currentSessionId = data.session_id;
-                    sessionLabel.textContent = data.label || data.session_id;
+                    showSessionPill(data.label || data.session_id);
                     if (mode === 'refine') {
                         log('SESSION', 'Refining current build \u2192 ' + (data.label || data.session_id));
                     } else {
@@ -925,6 +925,28 @@
                 artifactMap[f] = await fetchArtifactContent(f, currentSessionId);
             }
             renderArtifacts();
+        });
+
+        launchBtn.addEventListener('click', () => {
+            if (projectExists && currentSessionId) {
+                window.open('/workspace/' + currentSessionId + '/index.html?t=' + Date.now(), '_blank');
+            }
+        });
+
+        newSessionBtn.addEventListener('click', () => {
+            if (isFactoryRunning) return;
+            currentSessionId = '';
+            projectExists = false;
+            artifactMap = {};
+            consoleDiv.innerHTML = '<div style="color:#475569; font-style: italic; text-align: center; margin-top: 40%;">Factory offline. Awaiting neural input...</div>';
+            hideSessionPill();
+            renderArtifacts();
+            previewFrame.style.display = 'none';
+            previewEmpty.style.display = 'block';
+            previewFrame.src = 'about:blank';
+            statusBadge.innerText = 'ONLINE';
+            taskInput.value = '';
+            taskInput.focus();
         });
 
         // Load history count on startup
