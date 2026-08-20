@@ -65,6 +65,7 @@
             align-items: center;
             gap: 6px;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .agent-label {
             font-size: 9px;
@@ -84,11 +85,12 @@
         .agent-status.is-complete { color: var(--lime-neon); }
         .agent-orb {
             position: relative;
-            width: 84px;
-            height: 84px;
+            width: 68px;
+            height: 68px;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
         .agent-orb .scrolling-thought {
             opacity: 0.45;
@@ -96,8 +98,8 @@
         .organic-bubble {
             position: relative;
             z-index: 2;
-            width: 58px;
-            height: 58px;
+            width: 48px;
+            height: 48px;
             border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -391,7 +393,7 @@
     </header>
     <main class="pt-20 h-screen grid grid-cols-12 gap-6 p-6">
         <!-- AGENT COLUMN -->
-        <aside class="col-span-2 flex flex-col items-center justify-center gap-9 relative py-2 min-h-0 overflow-hidden">
+        <aside class="col-span-2 flex flex-col items-center justify-evenly relative py-4 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar">
             <div
                 class="absolute inset-0 bg-gradient-to-b from-[var(--teal-glow)]/5 to-transparent blur-3xl rounded-full pointer-events-none">
             </div>
