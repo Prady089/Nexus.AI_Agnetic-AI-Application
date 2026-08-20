@@ -59,7 +59,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
             cursor: pointer;
         }
         .agent-label {
@@ -69,15 +69,38 @@
             text-transform: uppercase;
             transition: color 0.3s;
         }
+        .agent-status {
+            font-size: 7px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #475569;
+            transition: color 0.3s;
+        }
+        .agent-status.is-active { color: var(--teal-glow); }
+        .agent-status.is-complete { color: var(--lime-neon); }
+        .agent-orb {
+            position: relative;
+            width: 84px;
+            height: 84px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .agent-orb .scrolling-thought {
+            opacity: 0.45;
+        }
         .organic-bubble {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
+            position: relative;
+            z-index: 2;
+            width: 58px;
+            height: 58px;
+            border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
+            animation: float 6s ease-in-out infinite;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .agent-node:hover .organic-bubble {
@@ -370,38 +393,83 @@
             </div>
 
             <div class="relative agent-node" id="node-planner">
-                <div class="organic-bubble">
-                    <span class="material-symbols-outlined text-blue-400 text-xl">psychology_alt</span>
+                <div class="agent-orb">
+                    <div class="scrolling-thought">
+                        <svg class="w-full h-full fill-slate-500 text-[2.6px] uppercase tracking-widest" viewBox="0 0 100 100">
+                            <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent" id="curve0"></path>
+                            <text><textPath href="#curve0">Mapping objectives... Orchestrating pathways...</textPath></text>
+                        </svg>
+                    </div>
+                    <div class="organic-bubble">
+                        <span class="material-symbols-outlined text-blue-400 text-xl">psychology_alt</span>
+                    </div>
                 </div>
                 <span class="agent-label text-blue-400">Project Manager</span>
+                <span class="agent-status">Idle</span>
             </div>
 
             <div class="relative agent-node" id="node-ba">
-                <div class="organic-bubble">
-                    <span class="material-symbols-outlined text-[var(--teal-glow)] text-xl">architecture</span>
+                <div class="agent-orb">
+                    <div class="scrolling-thought" style="animation-duration: 25s;">
+                        <svg class="w-full h-full fill-slate-500 text-[2.8px] uppercase tracking-widest" viewBox="0 0 100 100">
+                            <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent" id="curve1"></path>
+                            <text><textPath href="#curve1">Defining constraints... Extracting reqs...</textPath></text>
+                        </svg>
+                    </div>
+                    <div class="organic-bubble" style="border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;">
+                        <span class="material-symbols-outlined text-[var(--teal-glow)] text-xl">architecture</span>
+                    </div>
                 </div>
                 <span class="agent-label text-[var(--teal-glow)]">Business Analyst</span>
+                <span class="agent-status">Idle</span>
             </div>
 
             <div class="relative agent-node" id="node-arch">
-                <div class="organic-bubble">
-                    <span class="material-symbols-outlined text-amber-400 text-xl">hub</span>
+                <div class="agent-orb">
+                    <div class="scrolling-thought" style="animation-duration: 22s;">
+                        <svg class="w-full h-full fill-slate-500 text-[2.8px] uppercase tracking-widest" viewBox="0 0 100 100">
+                            <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent" id="curve3"></path>
+                            <text><textPath href="#curve3">Architecting systems... Mapping nodes...</textPath></text>
+                        </svg>
+                    </div>
+                    <div class="organic-bubble" style="animation-delay: -1s; border-radius: 40% 60% 30% 70% / 60% 30% 70% 40%;">
+                        <span class="material-symbols-outlined text-amber-400 text-xl">hub</span>
+                    </div>
                 </div>
                 <span class="agent-label text-amber-400">Architect</span>
+                <span class="agent-status">Idle</span>
             </div>
 
             <div class="relative agent-node" id="node-dev">
-                <div class="organic-bubble">
-                    <span class="material-symbols-outlined text-[var(--purple-glow)] text-xl">code</span>
+                <div class="agent-orb">
+                    <div class="scrolling-thought" style="animation-direction: reverse; animation-duration: 25s;">
+                        <svg class="w-full h-full fill-slate-500 text-[3.2px] uppercase tracking-widest" viewBox="0 0 100 100">
+                            <path d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" fill="transparent" id="curve2"></path>
+                            <text><textPath href="#curve2">Generating modules... Synthesizing logic...</textPath></text>
+                        </svg>
+                    </div>
+                    <div class="organic-bubble" style="animation-delay: -2s; border-radius: 60% 40% 30% 70% / 50% 30% 70% 50%;">
+                        <span class="material-symbols-outlined text-[var(--purple-glow)] text-xl">code</span>
+                    </div>
                 </div>
                 <span class="agent-label text-[var(--purple-glow)]">Developer</span>
+                <span class="agent-status">Idle</span>
             </div>
 
             <div class="relative agent-node" id="node-qa">
-                <div class="organic-bubble">
-                    <span class="material-symbols-outlined text-slate-400 text-xl">shield</span>
+                <div class="agent-orb">
+                    <div class="scrolling-thought" style="animation-duration: 28s; animation-direction: reverse;">
+                        <svg class="w-full h-full fill-slate-500 text-[2.8px] uppercase tracking-widest" viewBox="0 0 100 100">
+                            <path d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent" id="curve4"></path>
+                            <text><textPath href="#curve4">Auditing logic... Verifying integrity...</textPath></text>
+                        </svg>
+                    </div>
+                    <div class="organic-bubble" style="animation-delay: -4s; border-radius: 30% 70% 50% 50% / 50% 50% 30% 70%;">
+                        <span class="material-symbols-outlined text-slate-400 text-xl">shield</span>
+                    </div>
                 </div>
                 <span class="agent-label text-slate-400">Quality Analyst</span>
+                <span class="agent-status">Idle</span>
             </div>
         </aside>
 
@@ -437,11 +505,11 @@
         </section>
 
         <!-- PREVIEW AREA -->
-        <aside class="col-span-3 flex flex-col justify-center relative overflow-visible">
+        <aside class="col-span-3 flex flex-col relative overflow-visible">
             <div
                 class="absolute inset-0 bg-gradient-to-l from-[var(--purple-glow)]/5 to-transparent blur-3xl rounded-full">
             </div>
-            <div class="holo-projection p-6 rounded-3xl border border-white/10 backdrop-blur-sm h-3/4 flex flex-col">
+            <div class="holo-projection p-6 rounded-3xl border border-white/10 backdrop-blur-sm flex-1 flex flex-col">
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
@@ -817,10 +885,40 @@
             };
         }
 
+        const nodeOrder = ['node-planner', 'node-ba', 'node-arch', 'node-dev', 'node-qa'];
+
+        function resetAgentNodes() {
+            nodeOrder.forEach(nid => {
+                const wrap = document.getElementById(nid);
+                if (!wrap) return;
+                const bubble = wrap.querySelector('.organic-bubble');
+                const status = wrap.querySelector('.agent-status');
+                bubble.classList.remove('active', 'complete');
+                status.textContent = 'Idle';
+                status.className = 'agent-status';
+            });
+        }
+
         function setActiveNode(id) {
-            document.querySelectorAll('.organic-bubble').forEach(n => {
-                n.classList.remove('active');
-                if (n.parentElement.id === id) n.classList.add('active');
+            const idx = nodeOrder.indexOf(id);
+            nodeOrder.forEach((nid, i) => {
+                const wrap = document.getElementById(nid);
+                if (!wrap) return;
+                const bubble = wrap.querySelector('.organic-bubble');
+                const status = wrap.querySelector('.agent-status');
+                bubble.classList.remove('active');
+                if (i < idx) {
+                    bubble.classList.add('complete');
+                    status.textContent = 'Complete';
+                    status.className = 'agent-status is-complete';
+                } else if (i === idx) {
+                    bubble.classList.add('active');
+                    status.textContent = 'Active';
+                    status.className = 'agent-status is-active';
+                } else {
+                    status.textContent = 'Idle';
+                    status.className = 'agent-status';
+                }
             });
         }
 
@@ -849,6 +947,7 @@
                         previewEmpty.style.display = 'block';
                         previewFrame.src = 'about:blank';
                         renderArtifacts();
+                        resetAgentNodes();
                         log('SESSION', 'New build started \u2192 ' + (data.label || data.session_id));
                     }
                 } else if (data.event === 'node') {
@@ -868,7 +967,15 @@
                         previewFrame.src = '/workspace/' + currentSessionId + '/index.html?t=' + Date.now();
                     }
                 } else if (data.event === 'complete') {
-                    document.querySelectorAll('.relative[id^="node-"]').forEach(n => n.classList.add('complete'));
+                    nodeOrder.forEach(nid => {
+                        const wrap = document.getElementById(nid);
+                        if (!wrap) return;
+                        wrap.querySelector('.organic-bubble').classList.remove('active');
+                        wrap.querySelector('.organic-bubble').classList.add('complete');
+                        const status = wrap.querySelector('.agent-status');
+                        status.textContent = 'Complete';
+                        status.className = 'agent-status is-complete';
+                    });
                     es.close();
                     resetUI('COMPLETE');
                     loadHistory();
@@ -941,6 +1048,7 @@
             consoleDiv.innerHTML = '<div style="color:#475569; font-style: italic; text-align: center; margin-top: 40%;">Factory offline. Awaiting neural input...</div>';
             hideSessionPill();
             renderArtifacts();
+            resetAgentNodes();
             previewFrame.style.display = 'none';
             previewEmpty.style.display = 'block';
             previewFrame.src = 'about:blank';
