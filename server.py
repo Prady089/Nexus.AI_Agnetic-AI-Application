@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-import google.generativeai as genai
+from openai import OpenAI
 import json
 import asyncio
 
@@ -20,23 +20,20 @@ if not os.path.exists(WORKSPACE_DIR):
 # Mount entire workspace (sessions live as subdirs)
 app.mount("/workspace", StaticFiles(directory=WORKSPACE_DIR), name="workspace")
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 # ─── LLM ─────────────────────────────────────────────────────────────────────
 def llm(system, user, temperature=0.7):
     try:
-        model = genai.GenerativeModel(
-            model_name="gemini-3.5-flash-lite",
-            system_instruction=system + "\n\nImportant: Do not recite copyrighted material or training data verbatim. Be creative and synthesize new logic based on requirements."
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=temperature,
         )
-        response = model.generate_content(
-            user,
-            generation_config=genai.types.GenerationConfig(temperature=temperature)
-        )
-        if hasattr(response, 'candidates') and response.candidates:
-            if response.candidates[0].finish_reason == 4:
-                return "AGENT ERROR: Recitation block. Try re-phrasing your request."
-        return response.text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"LLM_ERROR: {str(e)}"
 

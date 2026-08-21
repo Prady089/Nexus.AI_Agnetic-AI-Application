@@ -1,6 +1,6 @@
 import os, uuid, time, re, shutil
 import gradio as gr
-import google.generativeai as genai
+from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,27 +23,19 @@ if not os.path.exists(WORKSPACE_DIR):
 # OPENAI CONFIG
 # ============================================================
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 def llm(system, user):
     try:
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=system + "\n\nImportant: Do not recite copyrighted material or training data verbatim. Be creative and synthesize new logic based on requirements."
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.7,
         )
-        response = model.generate_content(
-            user,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.7,
-            )
-        )
-        
-        # Check for recitation block
-        if hasattr(response, 'candidates') and response.candidates:
-            if response.candidates[0].finish_reason == 4:
-                return "AGENT ERROR: Recitation block (Finish Reason 4). The model detected it was copying known text too closely. Try re-phrasing your request."
-        
-        return response.text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"LLM_ERROR: {str(e)}"
 

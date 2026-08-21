@@ -121,7 +121,7 @@ The interface features a proprietary "Zig-Zag" formation that represents the log
 *   **Artifact-Centric**: Every agent output is a real file saved to your workspace, ensuring the factory produces tangible value.
 
 ## 🛠 Technical Architecture
-*   **Model**: Powered by **Google Gemini 2.0 Flash** (Model of choice for speed and high-context reasoning).
+*   **Model**: Powered by **OpenAI GPT-4o-mini** (Model of choice for speed and cost-efficient reasoning).
 *   **Backend**: A high-performance **FastAPI** hub managing synchronized event streams.
 *   **UI/UX**: **Gradio** for logic orchestration combined with a custom **Tailwind CSS** frontend for the "Nexus" aesthetic.
 *   **Design System**: Utilizes **Orbitron**, **Outfit**, and **Fira Code** for a futuristic, developer-focused experience.
@@ -130,7 +130,7 @@ The interface features a proprietary "Zig-Zag" formation that represents the log
 
 ### Prerequisites
 *   Python 3.10+
-*   Google Gemini API Key
+*   OpenAI API Key
 
 ### Installation
 1. Clone the repository:
