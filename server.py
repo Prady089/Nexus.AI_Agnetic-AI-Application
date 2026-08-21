@@ -268,7 +268,14 @@ For EACH file, output it using EXACTLY this format:
 [complete file content]
 ```
 
-Write ALL files needed (index.html, style.css, script.js at minimum). Each file must be fully complete with no placeholders. Use modern CSS (gradients, shadows, transitions) for a polished UI.""",
+Write ALL files needed (index.html, style.css, script.js at minimum). Each file must be fully complete with no placeholders. Use modern CSS (gradients, shadows, transitions) for a polished UI.
+
+LAYOUT RULES (critical - do not skip):
+- Include <meta name="viewport" content="width=device-width, initial-scale=1.0"> in the HTML head.
+- This is a web app viewed in a full desktop browser. Do NOT constrain the whole page to a narrow mobile-width column (e.g. 300-400px). Dashboards, calculators, and multi-field tools must use a wide, centered content area (roughly 700-1100px) or the full viewport width with responsive padding - only login/auth cards should be a narrow centered card.
+- Use CSS Grid or Flexbox to lay related fields/results side-by-side on desktop where it makes sense, collapsing to a single column only below 768px via a media query.
+- Format currency and large numbers with thousands separators (e.g. $928,405.00, not $928405.00) using toLocaleString() or equivalent.
+- If you draw any chart, icon, or graphic with Canvas/SVG, use precise arc/path math (correct radius, center, and angle calculations for circles/donuts) - never approximate with irregular polygon points that render as a distorted blob.""",
 
                 3: lambda role: f"""You are a {role} reviewing the delivered software.
 Produce a detailed QA Report. You MUST output it using EXACTLY this format so it gets saved:
