@@ -3,6 +3,7 @@
 ![NEXUS.AI Architecture]
 NEXUS.AI is a state-of-the-art, multi-agent AI framework designed to bridge the gap between human requirements and production-ready software. By orchestrating a fleet of specialized neural agents, NEXUS.AI automates the entire Software Development Life Cycle (SDLC) in real-time.
 
+https://nexus-ai-y8in.onrender.com/
 
 In this example, Agents are asked to create simple calcaulator web application.
 <img width="1919" height="868" alt="image" src="https://github.com/user-attachments/assets/92381d24-edf0-4b58-9f43-9f3e556acdab" />
