@@ -130,12 +130,13 @@ async def chat_with_agent(message: str, session_id: str = ""):
     async def event_generator():
         try:
             context = ""
+            session_dir = None
             if session_id:
                 session_dir = os.path.join(WORKSPACE_DIR, session_id)
                 context = read_session_files(session_dir)
 
             sys_prompt = """You are the Nexus.AI Project Manager — a sharp, conversational AI embedded in an agentic software factory.
-You oversee a team: Planner, Business Analyst, Architect, Developer, QA.
+You oversee a team: Business Analyst, Architect, Developer, Quality Analyst.
 You have full visibility into the current session's files.
 Be specific — reference actual filenames, code details, feature decisions.
 Keep responses focused and conversational (2-5 sentences). Never say 'I cannot'."""
@@ -145,6 +146,31 @@ Keep responses focused and conversational (2-5 sentences). Never say 'I cannot'.
 
             reply = llm(sys_prompt, user_msg, temperature=0.8)
             yield f"data: {json.dumps({'event': 'chat', 'agent': 'PROJECT MANAGER', 'text': reply})}\n\n"
+
+            # If there's an active project, have the Developer actually apply
+            # any code change this conversation implies - a chat reply alone
+            # never touches files, so without this "amendments" are just talk.
+            if session_dir and context:
+                dev_sys = """You are a Developer amending an EXISTING project based on a conversation with the Project Manager.
+You are given the CURRENT files and the latest exchange. If it requires a code change, output ONLY the files that need to change, using EXACTLY this format:
+
+### FILE: filename.ext
+```language
+[complete updated file content]
+```
+
+You MUST preserve the exact existing file paths and names — do not rename, move, or restructure the project. If nothing in the exchange requires a code change (e.g. it's a question or general conversation), respond with just: NO_CHANGE_NEEDED"""
+                dev_user = f"Existing files:\n{context}\n\nProject Manager's note: {reply}\n\nUser message: {message}\n\nApply any necessary code change now."
+
+                yield f"data: {json.dumps({'event': 'node', 'node': 'node-dev'})}\n\n"
+                dev_output = llm(dev_sys, dev_user, temperature=0.4)
+                files_changed = extract_files(dev_output, session_dir)
+                if files_changed:
+                    summary = strip_code_blocks(dev_output)
+                    if not summary or len(summary) < 20:
+                        summary = "Applied the requested change."
+                    yield f"data: {json.dumps({'event': 'log', 'agent': 'DEVELOPER', 'text': summary, 'files': files_changed, 'session_id': session_id})}\n\n"
+
             yield f"data: {json.dumps({'event': 'complete'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'event': 'chat', 'agent': 'SYSTEM', 'text': str(e)})}\n\n"
@@ -183,21 +209,24 @@ async def run_factory(task: str, mode: str = "initial", session_id: str = ""):
             existing_context = read_session_files(session_dir) if is_refine else ""
 
             # ── PLAN ──────────────────────────────────────────────────
+            # Roles are fixed to match the sidebar identities exactly, not
+            # LLM-invented each run - otherwise the displayed agent name has
+            # no relation to which fixed-prompt phase (BRD/architecture/code/QA)
+            # actually produced the content.
             yield f"data: {json.dumps({'event': 'node', 'node': 'node-planner'})}\n\n"
 
-            plan_sys = """You are a Senior Software Architect and Project Planner.
-Given a task, assign exactly 4 specialist roles (comma-separated).
-Each role should be specific: e.g. 'Business Analyst', 'System Architect', 'Full-Stack Developer', 'QA Engineer'.
-Return only the 4 roles as a comma-separated list. No extra text."""
-            plan_user = f"TASK: {task}" + (f"\nEXISTING CODE:\n{existing_context[:800]}" if is_refine else "")
+            if is_refine:
+                roles = ["Developer", "Quality Analyst"]
+                phase_indices = [2, 3]
+                nodes = ["node-dev", "node-qa"]
+                team_msg = f"Focused fix team: {', '.join(roles)}. Session: {get_session_label(sid)}. Applying the requested change directly to the existing build."
+            else:
+                roles = ["Business Analyst", "Architect", "Developer", "Quality Analyst"]
+                phase_indices = [0, 1, 2, 3]
+                nodes = ["node-ba", "node-arch", "node-dev", "node-qa"]
+                team_msg = f"Assembled team: {', '.join(roles)}. Session: {get_session_label(sid)}. Briefing agents and distributing work packages."
 
-            roles_raw = llm(plan_sys, plan_user)
-            roles = [r.strip() for r in roles_raw.split(",")][:4]
-            while len(roles) < 4:
-                roles.append("Full-Stack Developer")
-
-            team_msg = f"Assembled team: {', '.join(roles)}. Session: {get_session_label(sid)}. Briefing agents and distributing work packages."
-            yield f"data: {json.dumps({'event': 'log', 'agent': 'PLANNER', 'text': team_msg})}\n\n"
+            yield f"data: {json.dumps({'event': 'log', 'agent': 'PROJECT MANAGER', 'text': team_msg})}\n\n"
             await asyncio.sleep(0.3)
 
             history = f"TASK: {task}\n\n"
@@ -205,8 +234,6 @@ Return only the 4 roles as a comma-separated list. No extra text."""
                 history += f"CURRENT PROJECT STATE:\n{existing_context}\n\n"
 
             # ── AGENT PROMPTS ─────────────────────────────────────────
-            nodes = ["node-ba", "node-arch", "node-dev", "node-qa"]
-
             agent_system_prompts = {
                 0: lambda role: f"""You are a {role} working on a real software project.
 Analyze the task deeply and produce a detailed Business Requirements Document (BRD).
@@ -256,11 +283,12 @@ Include: executive summary with quality rating /10, feature verification table (
             }
 
             # ── RUN AGENTS ────────────────────────────────────────────
-            for i, agent in enumerate(roles):
-                node_id = nodes[i] if i < len(nodes) else "node-dev"
+            for agent, phase_idx, node_id in zip(roles, phase_indices, nodes):
                 yield f"data: {json.dumps({'event': 'node', 'node': node_id})}\n\n"
 
-                sys_prompt = agent_system_prompts[i](agent)
+                sys_prompt = agent_system_prompts[phase_idx](agent)
+                if is_refine and phase_idx == 2:
+                    sys_prompt += "\n\nIMPORTANT: This is an amendment to an EXISTING project. You MUST preserve the exact existing file paths and names shown in the project history below - do not invent a new folder structure, do not rename or move files. Only output the files that actually need to change to fulfill the request."
                 user_prompt = f"Project history:\n{history[-4000:]}\n\n{'USER CHANGE REQUEST' if is_refine else 'TASK'}: {task}\n\nDeliver your work now."
 
                 output = llm(sys_prompt, user_prompt)

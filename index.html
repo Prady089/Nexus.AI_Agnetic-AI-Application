@@ -869,13 +869,18 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
             const url = '/chat?message=' + encodeURIComponent(message) + '&session_id=' + encodeURIComponent(currentSessionId);
             const es = new EventSource(url);
-            es.onmessage = (e) => {
+            es.onmessage = async (e) => {
                 const data = JSON.parse(e.data);
                 if (data.event === 'chat') {
                     document.getElementById('typing-indicator')?.remove();
                     logChatReply(data.agent, data.text);
+                } else if (data.event === 'node') {
+                    setActiveNode(data.node);
+                } else if (data.event === 'log') {
+                    await handleAgentLog(data);
                 } else if (data.event === 'complete') {
                     document.getElementById('typing-indicator')?.remove();
+                    resetAgentNodes();
                     es.close();
                     isFactoryRunning = false;
                     runBtn.disabled = false;
@@ -929,6 +934,22 @@
         }
 
         // ── FACTORY ───────────────────────────────────────────────────
+        async function handleAgentLog(data) {
+            log(data.agent, data.text, data.files || []);
+            if (data.files && data.files.length > 0) {
+                for (const f of data.files) {
+                    artifactMap[f] = await fetchArtifactContent(f, currentSessionId);
+                }
+                renderArtifacts();
+            }
+            if (data.files && data.files.some(f => f.endsWith('.html'))) {
+                projectExists = true;
+                previewEmpty.style.display = 'none';
+                previewFrame.style.display = 'block';
+                previewFrame.src = '/workspace/' + currentSessionId + '/index.html?t=' + Date.now();
+            }
+        }
+
         function executeFactory(prompt, mode = 'initial', sid = '') {
             if (isFactoryRunning) return;
             isFactoryRunning = true;
@@ -959,19 +980,7 @@
                 } else if (data.event === 'node') {
                     setActiveNode(data.node);
                 } else if (data.event === 'log') {
-                    log(data.agent, data.text, data.files || []);
-                    if (data.files && data.files.length > 0) {
-                        for (const f of data.files) {
-                            artifactMap[f] = await fetchArtifactContent(f, currentSessionId);
-                        }
-                        renderArtifacts();
-                    }
-                    if (data.files && data.files.some(f => f.endsWith('.html'))) {
-                        projectExists = true;
-                        previewEmpty.style.display = 'none';
-                        previewFrame.style.display = 'block';
-                        previewFrame.src = '/workspace/' + currentSessionId + '/index.html?t=' + Date.now();
-                    }
+                    await handleAgentLog(data);
                 } else if (data.event === 'complete') {
                     nodeOrder.forEach(nid => {
                         const wrap = document.getElementById(nid);
